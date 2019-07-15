@@ -1,8 +1,5 @@
 #!/usr/bin/python3
 import sys
-#curr_dir = sys.path[0]
-#sys.path.append(curr_dir + '../../pvc_py_tools')
-sys.path.append('/home/local/dvalenzu/Repos/Code/PanVC/pvc_py_tools')
 from pvc_tools import *
 from pathlib import Path
 from Bio import SeqIO
@@ -262,18 +259,5 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
     assert(not Path(target_vcf).exists())
     concat_command = "perl -I " + vcftools_path + " " + vcfconcat + " " + input_vcfs + " > " + target_vcf
     call_or_die(concat_command)
-
-def normalize_main():
-    n_args = len(sys.argv);
-    if(n_args != 4):
-        print('Number of arguments: ' +str(n_args) +  ' arguments, is incorrect:')
-        sys.exit();
-    all_vcf_files = sys.argv[1];
-    adhoc_ref_output_folder = sys.argv[2];
-    pgindex_dir = sys.argv[3];
-    normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder)
-
-if __name__ == "__main__":
-    normalize_main()
 
 

@@ -202,6 +202,3 @@ def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N
         log_file.write('[sam_to_positions]: *************************\n')
         i = i + 1
     log_file.write('NEW SAM TO POS DONE\n')
-
-if __name__ == "__main__":
-    main()
