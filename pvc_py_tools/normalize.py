@@ -167,6 +167,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
     
     
     with open(chr_list_file) as f:
+        PANVC_DIR = sys.path[0]
         for line in f:
             chr_id = str(int(line))
             print ("Normalizing vars in chr: " + chr_id)
@@ -196,11 +197,11 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
             #   ${DIR}/validate_equal_sequences.sh ${A2} ${X1}
             #fi
             output_prefix = curr_vcf_file
-            project_command =  "/home/local/dvalenzu/Repos/Code/PanVC/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
+            project_command =  PANVC_DIR + "/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
             call_or_die(project_command)
 
             new_ref = output_prefix + ".newrefgapped"
-            gap_positions_bin = "/home/local/dvalenzu/Repos/Code/PanVC/components/pan_genome_index_real/store_gap_pos/src/store_gaps"
+            gap_positions_bin = PANVC_DIR + "/components/pan_genome_index_real/store_gap_pos/src/store_gaps"
             assert(Path(new_ref).is_file())  # created also by projector
             assert(Path(gap_positions_bin).is_file())
             gap_pos_prefix = new_ref + ".gaps"
@@ -208,13 +209,13 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
             call_or_die(command_gaps)
 
             msa = output_prefix + ".msa"
-            msa2vcf= "/home/local/dvalenzu/Repos/Code/PanVC/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"
+            msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"
             tmp_vcf = curr_vcf_file + ".normalized.tmp.vcf"
             command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
             call_or_die(command_msa2vcf)
             
             normalized_vcf = curr_vcf_file + ".normalized.vcf"
-            renormalizer = "/home/local/dvalenzu/Repos/Code/PanVC/components/normalize_vcf/renormalizer/renormalizer"
+            renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"
             renormalizer_command = renormalizer + " " + tmp_vcf + " " + new_ref + ".gaps > " + normalized_vcf 
             call_or_die(renormalizer_command)
             #TODO: the following validation:
@@ -246,8 +247,8 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
             fi
             """
 
-    vcftools_path = "/home/local/dvalenzu/Repos/Code/PanVC/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/"
-    vcfconcat = "/home/local/dvalenzu/Repos/Code/PanVC/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/vcf-concat"
+    vcftools_path = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/"
+    vcfconcat = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/vcf-concat"
     assert(Path(vcfconcat).is_file())
     input_vcfs = ""
     with open(chr_list_file) as f:
