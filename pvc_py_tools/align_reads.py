@@ -3,7 +3,6 @@ import argparse
 from pvc_tools import *
 from pathlib import Path
 
-
 def align_main():
     parser = argparse.ArgumentParser(description='Align reads to a PanVC-indexed pan-genome.')
     parser.add_argument("--pgindex_dir",          required=True, help="PanVC index directory")
@@ -54,23 +53,22 @@ def PVC_align(args):
 
     sequence_all_file = pgindex_dir + "/recombinant.all.fa"
 
-    chic_align_bin = os.environ["CHIC_ALIGN_BIN"]
     chic_align_flags ="--secondary=LZ --threads=" + str(n_threads) + " --kernel-options=--n-ceil=C," + str(max_edit_distance) + ",0"
     alignment_command = ""
     if debug_mode:
         sam_all_plain = output_folder + "/mapped_reads_all.sam"
         alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all + " --output="+ sam_all_plain 
-        samtools_view_command = "${SAMTOOLS} view -Sb " + sam_all_plain + " > " + output_folder + "/all_mapped.bam"
+        samtools_view_command = samtools_bin + " view -Sb " + sam_all_plain + " > " + output_folder + "/all_mapped.bam"
         call_or_die(alignment_command)
         call_or_die(samtools_view_command)
     else:
-        alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | ${SAMTOOLS} view -Sb -  > " + output_folder + "/all_mapped.bam"
+        alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | " + samtools_bin + " view -Sb -  > " + output_folder + "/all_mapped.bam"
         call_or_die(alignment_command)
 
-    sort_command ="${SAMTOOLS} sort -@ " + str(n_threads) + " " + output_folder+"/all_mapped.bam" + " " + output_folder + "/all_sorted"
+    sort_command = samtools_bin + " sort -@ " + str(n_threads) + " " + output_folder+"/all_mapped.bam" + " " + output_folder + "/all_sorted"
     call_or_die(sort_command)
 
-    split_command="${BAMTOOLS} split -reference -in "+output_folder+"/all_sorted.bam"
+    split_command = bamtools_bin + " split -reference -in "+output_folder+"/all_sorted.bam"
     call_or_die(split_command)
 
     with open(chr_list_file) as f:
@@ -89,7 +87,7 @@ def PVC_align(args):
                     assert not os.path.exists(sam_file)
                     Path(sam_file).touch()
                 else:
-                    command = "${SAMTOOLS} view -@ " + str(n_threads) + " " + bam_file + " | gzip > " + sam_file
+                    command = samtools_bin + " view -@ " + str(n_threads) + " " + bam_file + " | gzip > " + sam_file
                     call_or_die(command)
 
 if __name__ == "__main__":

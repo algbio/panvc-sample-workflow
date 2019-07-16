@@ -17,13 +17,13 @@ def file_exists_or_die(filename):
 ## and the SAM/BAM file specification.
 
 def get_NMAPS_FROM_SINGLE_END_READS(bam_filename):
-    command_args = [SAMTOOLS_PATH, "view", "-F", "0x904", "-c", bam_filename]
+    command_args = [samtools_bin, "view", "-F", "0x904", "-c", bam_filename]
     result = subprocess.run(command_args, stdout=subprocess.PIPE)
     output = result.stdout.decode('utf-8').rstrip()
     return output
 
 def get_NMAPS_FROM_PAIRED_END_READS(bam_filename):
-    command_str = " ".join([SAMTOOLS_PATH, "view", "-F", "0x4", bam_filename, " | cut -f 1 | sort | uniq | wc -l "])
+    command_str = " ".join([samtools_bin, "view", "-F", "0x4", bam_filename, " | cut -f 1 | sort | uniq | wc -l "])
     result = subprocess.run(command_str, shell=True, stdout=subprocess.PIPE)
     output = result.stdout.decode('utf-8').rstrip()
     return output

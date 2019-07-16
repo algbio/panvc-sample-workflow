@@ -1,6 +1,7 @@
 import os.path
 import sys
 import gzip
+from config import *
 from pathlib import Path
 #from config import *
 def PVC_make_std_ref(args):
