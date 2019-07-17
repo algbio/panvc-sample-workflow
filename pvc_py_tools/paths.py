@@ -18,16 +18,16 @@ def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
     curr_pos_dir = POS_DIR + "/" + chr_id
     input_pos = curr_pos_dir + "/mapped_reads_to" + str(seq) + ".pos"
     input_gaps_prefix = pgindex_dir + "/" + chr_id + "/recombinant.n"  + str(seq) + ".gaps"
-    hp_prefix = "tmp_light_heaviest_path." + str(seq)
+    curr_tmp_prefix = curr_pos_dir + "/tmp_light_heaviest_path." + str(seq)
     
-    split_sort_command = " ".join([SPLIT_AND_SORT_BIN, input_pos, input_gaps_prefix, hp_prefix, str(msa_len), str(read_len)])
+    split_sort_command = " ".join([SPLIT_AND_SORT_BIN, input_pos, input_gaps_prefix, curr_tmp_prefix, str(msa_len), str(read_len)])
     call_or_die(split_sort_command)
     
-    pileup_command = " ".join([PILEUP_BIN, hp_prefix])
+    pileup_command = " ".join([PILEUP_BIN, curr_tmp_prefix])
     call_or_die(pileup_command)
     # TODO: validate.
-    #hp_utils_is_ordered ${HP_PREFIX}.starts
-    #hp_utils_is_ordered ${HP_PREFIX}.ends
+    #hp_utils_is_ordered ${curr_tmp_prefix}.starts
+    #hp_utils_is_ordered ${curr_tmp_prefix}.ends
 
 def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
     assert(Path(HP_BIN).is_file())
@@ -66,10 +66,10 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
             process_seq(seq_id,  POS_DIR, pgindex_dir, chr_id)
         
         for seq_id in range (1, n_refs+1):
-            hp_prefix = "tmp_light_heaviest_path." + str(seq_id)
+            curr_tmp_prefix = curr_pos_dir + "/tmp_light_heaviest_path." + str(seq_id)
             with open(sum_files_list, "a") as myfile:
-                assert(Path(hp_prefix + ".sums").is_file())
-                myfile.write(hp_prefix + ".sums\n")
+                assert(Path(curr_tmp_prefix + ".sums").is_file())
+                myfile.write(curr_tmp_prefix + ".sums\n")
         matrix_pgm_output = LOG_DIR + "/scores_matrix.pgm"
         print_matrix_command = " ".join([MATRIX_PRINT_BIN, sum_files_list, str(n_refs), str(msa_len), matrix_pgm_output, ">", hp_log])
         call_or_die(print_matrix_command)
@@ -106,10 +106,12 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
                 tmp_file.write(newline + "\n")
 
         gap_f.close()
+        cleanup_command = "rm " + curr_pos_dir + "/tmp_light_heaviest_path.*"
+        call_or_die(cleanup_command)
         print("Adhoc-ref succesfully built!")
         #TODO:
         #if [ ${DEBUG_MODE} -eq 0 ]; then
-            #rm ${HP_TMP_PREFIX}.*
+            #rm ${curr_tmp_prefix}.*
         #fi
 
 if __name__ == "__main__":
