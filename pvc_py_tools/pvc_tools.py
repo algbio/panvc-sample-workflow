@@ -42,6 +42,20 @@ def PVC_nrefs_from_index(pgindex_dir):
         ans = myfile.read()
     return int(ans)
 
+def PVC_msalen_from_index(pgindex_dir, chr_id):
+    msa_len_file = pgindex_dir + "/" + chr_id + "/msa_len.txt"
+    assert(os.path.isfile(msa_len_file))
+    with open(msa_len_file, 'r') as myfile:
+        ans = myfile.read()
+    return int(ans)
+
+def PVC_read_len_from_pos_dir(pos_dir):
+    read_len_file = pos_dir + "/read_len.txt"
+    assert(os.path.isfile(read_len_file))
+    with open(read_len_file, 'r') as myfile:
+        ans = myfile.read()
+    return int(ans)
+
 def PVC_validate_names(pgindex_dir):
     #TODO: implement me
     """
