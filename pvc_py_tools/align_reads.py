@@ -28,7 +28,7 @@ def PVC_align(args):
 
     debug_mode = args.debug
     n_threads = args.n_threads
-    max_edit_distance = args.max_edit_distance
+    max_edit_distance = PVC_load_var("max_edit_distance", pgindex_dir)
     ploidity = args.ploidity
 
     ensure_dir(output_folder)
@@ -37,11 +37,12 @@ def PVC_align(args):
     if (paired_flag):
         reads_all = PVC_merge_reads(reads_1, reads_2)
 
-    n_refs = PVC_nrefs_from_index(pgindex_dir)
+    n_refs = PVC_load_var("n_refs", pgindex_dir)
+    max_read_len = PVC_load_var("max_read_len", pgindex_dir)
     read_len = PVC_read_len_from_reads(reads_all)
-    read_len_file = output_folder + "/read_len.txt"
-    with open(read_len_file, 'w') as f:
-        f.write(str(read_len))
+    assert(read_len < max_read_len)
+    
+    PVC_save_var(read_len, "read_len", output_folder)
 
     chr_list_file = pgindex_dir + "/chr_list.txt"
     assert(os.path.isfile(chr_list_file))

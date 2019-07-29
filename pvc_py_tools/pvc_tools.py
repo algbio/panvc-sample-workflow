@@ -4,6 +4,7 @@ import gzip
 from config import *
 from pathlib import Path
 #from config import *
+
 def PVC_make_std_ref(args):
     output_file = args.output_dir + "/std_ref.fa"
     out_file = open(output_file, "w")
@@ -32,27 +33,17 @@ def PVC_read_len_from_reads(reads_file):
             a_line = myfile.readline()
             a_read = myfile.readline().rstrip('\n')
     read_len =len(a_read)
-    #TODO: save it
     return read_len
 
-def PVC_nrefs_from_index(pgindex_dir):
-    n_refs_file = pgindex_dir + "/n_refs.txt"
-    assert(os.path.isfile(n_refs_file))
-    with open(n_refs_file, 'r') as myfile:
-        ans = myfile.read()
-    return int(ans)
+def PVC_save_var(var_value, var_name, target_dir):
+    file_name = target_dir + "/" + var_name + ".txt" 
+    with open(file_name, "w") as g:
+        g.write(str(var_value))
 
-def PVC_msalen_from_index(pgindex_dir, chr_id):
-    msa_len_file = pgindex_dir + "/" + chr_id + "/msa_len.txt"
-    assert(os.path.isfile(msa_len_file))
-    with open(msa_len_file, 'r') as myfile:
-        ans = myfile.read()
-    return int(ans)
-
-def PVC_read_len_from_pos_dir(pos_dir):
-    read_len_file = pos_dir + "/read_len.txt"
-    assert(os.path.isfile(read_len_file))
-    with open(read_len_file, 'r') as myfile:
+def PVC_load_var(var_name, target_dir):
+    file_name = target_dir + "/" + var_name + ".txt" 
+    assert(os.path.isfile(file_name))
+    with open(file_name, 'r') as myfile:
         ans = myfile.read()
     return int(ans)
 

@@ -13,8 +13,8 @@ def paths_main():
     paths(PG_INDEX_DIR, POS_DIR, OUTPUT_DIR, LOG_DIR)
 
 def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
-    msa_len = PVC_msalen_from_index(pgindex_dir, chr_id)
-    read_len = PVC_read_len_from_pos_dir(POS_DIR)
+    msa_len = PVC_load_var("msa_len", pgindex_dir + "/"+ chr_id)
+    read_len = PVC_load_var("read_len", POS_DIR)
     curr_pos_dir = POS_DIR + "/" + chr_id
     input_pos = curr_pos_dir + "/mapped_reads_to" + str(seq) + ".pos"
     input_gaps_prefix = pgindex_dir + "/" + chr_id + "/recombinant.n"  + str(seq) + ".gaps"
@@ -41,7 +41,7 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
     assert(not Path(output_gapped_all).exists())
     assert(not Path(output_plain_all).exists())
     
-    n_refs = PVC_nrefs_from_index(pgindex_dir)
+    n_refs = PVC_load_var("n_refs", pgindex_dir)
     chr_list_file = pgindex_dir + "/chr_list.txt" ## TODO: move to a PVC_method
     chr_list = [line.rstrip('\n') for line in open(chr_list_file)]
     n_chroms = len(chr_list)
@@ -52,7 +52,7 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
         curr_pos_dir = POS_DIR + "/" + chr_id
         # This was done in the bash script, not needed anymore.
         #os.chdir(curr_pos_dir)  ## TODO: get rid of this.
-        msa_len = PVC_msalen_from_index(pgindex_dir, chr_id)
+        msa_len = PVC_load_var("msa_len", pgindex_dir + "/"+ chr_id)
         curr_output_dir = OUTPUT_DIR + "/" + chr_id
         ensure_dir(curr_output_dir)
         output_prefix = curr_output_dir + "/adhoc_reference"
