@@ -12,8 +12,6 @@ def align_main():
 
     parser.add_argument("--debug", action='store_true', help="Will run extra checks, degrading performance.")
     parser.add_argument("-t", "--n_threads",  type=int, default=1,    help="Number of threads")
-    ## TODO: check if we really want this to be a parameter HERE. (it will be for the index though.)
-    parser.add_argument("-d", "--max_edit_distance",  type=int, default=10,    help="Max edit distance")
     parser.add_argument("-p", "--ploidity",  type=int, default=2,    help="Ploidity of the genomes")
     args = parser.parse_args()
     PVC_align(args)
@@ -50,7 +48,7 @@ def PVC_align(args):
 
     print ("Reference contains : " + str(n_refs) + " references")
     print ("Read len           : " + str(read_len))
-    ##TODO:  do I want the old "reuse sam option?"
+    ##TODO:  do we want the old "reuse sam option?"
 
     sequence_all_file = pgindex_dir + "/recombinant.all.fa"
 
