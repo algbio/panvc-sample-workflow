@@ -61,6 +61,15 @@ def PVC_validate_names(pgindex_dir):
     """
     pass
 
+
+def PVC_get_system_ulimit():
+    import subprocess
+    result = subprocess.run(['ulimit -n'], shell=True, stdout=subprocess.PIPE, executable="/bin/bash")
+    nfiles = result.stdout.decode().rstrip()
+    if (nfiles == "unlimited"):
+        nfiles = "10000"
+    return int(nfiles)
+
 #TODO: receive output dir as well, we do not want this file to lie in the input folder, which is the current behavior
 def PVC_merge_reads(reads_1, reads_2):
     ## assert reads_1, 2, are valid files.
