@@ -48,19 +48,44 @@ def PVC_load_var(var_name, target_dir):
     return int(ans)
 
 def PVC_validate_names(pgindex_dir):
-    #TODO: implement me
-    """
-    F_CHR=$( head -n1 ${CHR_LIST_FILE})
-    if [ ${DEBUG_MODE} -eq 1 ]; then
-    cat ${CHR_LIST_FILE} | while read CHR_ID
-    do
-      utils_assert_files_are_equal ${PG_INDEX_OUTPUT_DIR}/${F_CHR}/n_refs.txt ${PG_INDEX_OUTPUT_DIR}/${CHR_ID}/n_refs.txt
-      utils_assert_namefiles_are_almost_equal ${PG_INDEX_OUTPUT_DIR}/${F_CHR}/names.plain ${PG_INDEX_OUTPUT_DIR}/${CHR_ID}/names.plain
-    done
-    fi
-    """
-    pass
+    import filecmp
+    ## This validates that the samples names are the same for all the chromosomes. 
+    ## If this assumption is not true, the pipeline breaks.
+    chr_list_file = pgindex_dir + "/chr_list.txt"
+    first_chr = PVC_get_first_chr(chr_list_file)
+    with open(chr_list_file) as f:
+        for line in f:
+            curr_chr = str(int(line))
+            f1 = pgindex_dir + "/" + first_chr + "/n_refs.txt"
+            f2 = pgindex_dir + "/" + curr_chr+ "/n_refs.txt"
+            if (not filecmp.cmp(f1, f1)):
+                print ("Inconsistent input: different chromosmes have different number of genomes in the pan-genome")
+                exit(33)
+            samples_1 = pgindex_dir + "/" + first_chr + "/names.plain"
+            samples_2 = pgindex_dir + "/" + curr_chr+ "/names.plain"
+            if (not PVC_compare_samples_names(samples_1, samples_2)):
+                print ("Inconsistent input: samples have different names in different chromosmes in the pan-genome")
+                print ("File 1: " + samples_1)
+                print ("File 2: " + samples_2)
+                exit(33)
 
+def PVC_compare_samples_names(file_1, file_2):
+    f1 = open(file_1,"r")
+    names_1 = f1.readlines()
+    f2 = open(file_2,"r")
+    names_2 = f2.readlines()
+    if len(names_1) != len(names_2):
+        return False
+    for i in range(1, len(names_1)):
+        if names_1[i] != names_2[i]:
+            return False
+    return True
+
+def PVC_get_first_chr(chr_list_file):
+    with open(chr_list_file) as f:
+        line = f.readline()
+        first_chr = str(int(line))
+    return first_chr
 
 def PVC_get_system_ulimit():
     import subprocess
@@ -70,11 +95,10 @@ def PVC_get_system_ulimit():
         nfiles = "10000"
     return int(nfiles)
 
-#TODO: receive output dir as well, we do not want this file to lie in the input folder, which is the current behavior
-def PVC_merge_reads(reads_1, reads_2):
-    ## assert reads_1, 2, are valid files.
-    basedir = os.path.dirname(reads_1)
-    output = basedir + "/reads_ALL_RENAMED.fq.gz"
+def PVC_merge_reads(reads_1, reads_2, output_folder):
+    assert(Path(reads_1).is_file())
+    assert(Path(reads_2).is_file())
+    output = output_folder + "/reads_ALL_RENAMED.fq.gz"
     if os.path.isfile(output):
         return output
     file_path, file_extension = os.path.splitext(reads_1)

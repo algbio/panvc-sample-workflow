@@ -35,7 +35,7 @@ def PVC_align(args):
 
     reads_all = reads_1
     if (paired_flag):
-        reads_all = PVC_merge_reads(reads_1, reads_2)
+        reads_all = PVC_merge_reads(reads_1, reads_2, output_folder)
 
     n_refs = PVC_load_var("n_refs", pgindex_dir)
     max_read_len = PVC_load_var("max_read_len", pgindex_dir)
