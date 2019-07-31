@@ -5,12 +5,12 @@ sys.path.append('/home/local/dvalenzu/Repos/Code/PanVC/pvc_py_tools')
 from pvc_tools import *
 
 
-def paths_main():
-    PG_INDEX_DIR = sys.argv[1]
-    POS_DIR = sys.argv[2]
-    OUTPUT_DIR = sys.argv[3]
-    LOG_DIR = sys.argv[4]
-    paths(PG_INDEX_DIR, POS_DIR, OUTPUT_DIR, LOG_DIR)
+#def paths_main():
+#    PG_INDEX_DIR = sys.argv[1]
+#    POS_DIR = sys.argv[2]
+#    OUTPUT_DIR = sys.argv[3]
+#    LOG_DIR = sys.argv[4]
+#    paths(PG_INDEX_DIR, POS_DIR, OUTPUT_DIR, LOG_DIR)
 
 def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
     msa_len = PVC_load_var("msa_len", pgindex_dir + "/"+ chr_id)
@@ -29,7 +29,7 @@ def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
     #hp_utils_is_ordered ${curr_tmp_prefix}.starts
     #hp_utils_is_ordered ${curr_tmp_prefix}.ends
 
-def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
+def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
     assert(Path(HP_BIN).is_file())
     assert(Path(MATRIX_PRINT_BIN).is_file())
 
@@ -50,8 +50,6 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
         sys.stderr.write("Processing chr " + chr_id + "\n")
         hp_log = LOG_DIR + "/heaviest_path_chr" + chr_id + ".log"
         curr_pos_dir = POS_DIR + "/" + chr_id
-        # This was done in the bash script, not needed anymore.
-        #os.chdir(curr_pos_dir)  ## TODO: get rid of this.
         msa_len = PVC_load_var("msa_len", pgindex_dir + "/"+ chr_id)
         curr_output_dir = OUTPUT_DIR + "/" + chr_id
         ensure_dir(curr_output_dir)
@@ -106,13 +104,10 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR):
                 tmp_file.write(newline + "\n")
 
         gap_f.close()
-        cleanup_command = "rm " + curr_pos_dir + "/tmp_light_heaviest_path.*"
-        call_or_die(cleanup_command)
         print("Adhoc-ref succesfully built!")
-        #TODO:
-        #if [ ${DEBUG_MODE} -eq 0 ]; then
-            #rm ${curr_tmp_prefix}.*
-        #fi
+        if (not debug):
+            cleanup_command = "rm " + curr_pos_dir + "/tmp_light_heaviest_path.*"
+            call_or_die(cleanup_command)
 
 if __name__ == "__main__":
     paths_main()
