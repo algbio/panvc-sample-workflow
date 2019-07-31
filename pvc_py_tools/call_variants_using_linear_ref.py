@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 import os
 
-def main():
+def VC_main():
     parser = argparse.ArgumentParser(description='Align reads to a PanVC-indexed pan-genome.')
     parser.add_argument("reference"             , help="Reference genome.")
     parser.add_argument("output_file"           , help="Name of the desired output file (vcf).")
@@ -19,7 +19,9 @@ def main():
     parser.add_argument("-m", "--max_memory_MB",  type=int, default=1000,    help="Available ram (MB)")  ## TODO: look previous defaults
     parser.add_argument("--vc_base_method",  choices=["GATK", "SAMTOOLS"], default = "SAMTOOLS",    help="Method to call variants with the ad-hoc reference.")
     args = parser.parse_args()
-    
+    call_variants_with_standard_methods(args)
+
+def call_variants_with_standard_methods(args):
     if (args.vc_base_method == "GATK"):
         BwaGATKVC(args)
     else:
@@ -229,5 +231,5 @@ def BwaGATKVC(args):
         call_or_die(histogram_command)
 
 if __name__ == "__main__":
-    main()
+    VC_main()
 
