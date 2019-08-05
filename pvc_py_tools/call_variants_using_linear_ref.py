@@ -16,7 +16,7 @@ def VC_main():
 
     parser.add_argument("--debug", action='store_true', help="Will run extra checks, degrading performance.")
     parser.add_argument("-t", "--n_threads",      type=int, default=1,    help="Number of threads")
-    parser.add_argument("-m", "--max_memory_MB",  type=int, default=1000,    help="Available ram (MB)")  ## TODO: look previous defaults
+    parser.add_argument("-m", "--max_memory_MB",  type=int, default=1000,    help="Available ram (MB)")
     parser.add_argument("--vc_base_method",  choices=["GATK", "SAMTOOLS"], default = "SAMTOOLS",    help="Method to call variants with the ad-hoc reference.")
     args = parser.parse_args()
     call_variants_with_standard_methods(args)
@@ -109,10 +109,10 @@ def BwaGATKVC(args):
     bwa_index_command = BWA_BIN + " index " + reference
     call_or_die(bwa_index_command)
     
-    reference_is_indexed = False  ##TODO: actual check
+    reference_is_indexed = False  ##TODO(optimization): actual check. This would be automatic using snake-make
     if (not reference_is_indexed):
         bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
-        #TODO (optional, or "guessing"): -a allows whole genome.
+        #TODO(scalability): -a allows whole genome. should it be a parameter or should it be infered from the context
         call_or_die(bwa_align_command)
 
     faidx_command = SAMTOOLS_BIN + " faidx " + reference

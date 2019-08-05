@@ -48,7 +48,9 @@ def PVC_align(args):
 
     print ("Reference contains : " + str(n_refs) + " references")
     print ("Read len           : " + str(read_len))
-    ##TODO:  do we want the old "reuse sam option?"
+    ##TODO(Future):  We used to have a "reuse sam" flag to avoid reruning the whole pipeline. 
+    ## Now this option is gone. The real fix is not to bring it back, but to migrate to snake-make so that we can re-run the pipeline from any intermediate 
+    ## stage if some changes were done.
 
     sequence_all_file = pgindex_dir + "/recombinant.all.fa"
 
