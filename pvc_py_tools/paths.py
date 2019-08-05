@@ -12,6 +12,17 @@ from pvc_tools import *
 #    LOG_DIR = sys.argv[4]
 #    paths(PG_INDEX_DIR, POS_DIR, OUTPUT_DIR, LOG_DIR)
 
+def validate_sorted_file(input_filename):
+    assert(Path(input_filename).is_file())
+    prev = 0
+    with open(input_filename, "r") as myfile:
+        for line in myfile:
+            number = int(line.rstrip())
+            if (number <= prev):
+                print ("Error validating file: " + input_filename)
+                print ("The following values are in the wrong order: " + str(prev) + " , " + str(number))
+                exit(33)
+
 def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
     msa_len = PVC_load_var("msa_len", pgindex_dir + "/"+ chr_id)
     read_len = PVC_load_var("read_len", POS_DIR)
@@ -25,9 +36,8 @@ def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
     
     pileup_command = " ".join([PILEUP_BIN, curr_tmp_prefix])
     call_or_die(pileup_command)
-    # TODO: validate.
-    #hp_utils_is_ordered ${curr_tmp_prefix}.starts
-    #hp_utils_is_ordered ${curr_tmp_prefix}.ends
+    validate_sorted_file(curr_tmp_prefix + ".starts")
+    validate_sorted_file(curr_tmp_prefix + ".ends")
 
 def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
     assert(Path(HP_BIN).is_file())
