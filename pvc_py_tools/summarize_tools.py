@@ -108,9 +108,8 @@ def write_summary(working_dir, pgindex_dir, input_reads_are_paired, reads_1, rea
     summary_file.write("\n")
     
     ## for each chromosome:
-    chr_file_list = pgindex_dir + "/chr_list.txt"
-    for line in open(chr_file_list):
-        chr_id = line.rstrip('\n')
+    chr_list = PVC_get_chr_list(pgindex_dir)
+    for chr_id in chr_list:
         adhoc_ref_aligned_to_ref = working_dir + "/adhoc_ref_files/" + chr_id + "/adhoc_reference.aligned_to_ref"
         ref_file = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
         adhocref_summary = SummarizeAdhocRef(adhoc_ref_aligned_to_ref, ref_file)

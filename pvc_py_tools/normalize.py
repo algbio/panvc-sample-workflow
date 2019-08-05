@@ -150,99 +150,91 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
     assert(Path(all_vcf_files).is_file())
     assert(Path(adhoc_ref_output_folder).is_dir())
     assert(Path(pgindex_dir).is_dir())
-    chr_list_file = pgindex_dir + "/chr_list.txt"
-    assert(Path(chr_list_file).is_file())
-    
-    # TODO(optimization): this grep could be done in one pass over all_vcf_files. 
-    with open(chr_list_file) as f:
-        for line in f:
-            chr_id = str(int(line))
-            print ("Splitting " + chr_id)
-            curr_vcf_dir = adhoc_ref_output_folder + "/" + chr_id 
-            curr_vcf_file = curr_vcf_dir + "/vars.vcf"
-            assert(Path(curr_vcf_dir).is_dir())
-            assert(not Path(curr_vcf_file).exists())
-            command  = 'grep "adhoc_ref_chr' + chr_id + '" ' +  all_vcf_files + " > " + curr_vcf_file
-            call_or_die(command)
+    chr_list = PVC_get_chr_list(pgindex_dir)
+
+    # TODO(optimization): this grep could be done in one pass over all_vcf_files.
+    for chr_id in chr_list:
+        print ("Splitting " + chr_id)
+        curr_vcf_dir = adhoc_ref_output_folder + "/" + chr_id 
+        curr_vcf_file = curr_vcf_dir + "/vars.vcf"
+        assert(Path(curr_vcf_dir).is_dir())
+        assert(not Path(curr_vcf_file).exists())
+        command  = 'grep "adhoc_ref_chr' + chr_id + '" ' +  all_vcf_files + " > " + curr_vcf_file
+        call_or_die(command)
     
     
-    with open(chr_list_file) as f:
-        PANVC_DIR = sys.path[0]
-        for line in f:
-            chr_id = str(int(line))
-            print ("Normalizing vars in chr: " + chr_id)
-            curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
-            assert(Path(curr_vcf_file).is_file())
+    PANVC_DIR = sys.path[0]
+    for chr_id in chr_list:
+        print ("Normalizing vars in chr: " + chr_id)
+        curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
+        assert(Path(curr_vcf_file).is_file())
             
-            curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
-            curr_adhoc_ref_file_fasta = curr_adhoc_ref_prefix + ".fasta"
-            curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
-            assert(Path(curr_adhoc_ref_file_fasta).is_file())
-            assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
+        curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
+        curr_adhoc_ref_file_fasta = curr_adhoc_ref_prefix + ".fasta"
+        curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
+        assert(Path(curr_adhoc_ref_file_fasta).is_file())
+        assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
             
-            curr_aligned_vars =  curr_vcf_file + ".applied"
-            assert(not Path(curr_aligned_vars).exists())
-            apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars, debug_mode)
-            assert(Path(curr_aligned_vars).is_file())
+        curr_aligned_vars =  curr_vcf_file + ".applied"
+        assert(not Path(curr_aligned_vars).exists())
+        apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars, debug_mode)
+        assert(Path(curr_aligned_vars).is_file())
 
-            a1 = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
-            a2 = curr_adhoc_ref_aligned_to_ref
-            x1 = curr_vcf_file + ".applied.seq1"
-            x2 = curr_vcf_file + ".applied.seq2"
-            command_head = "head -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x1
-            command_tail = "tail -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x2
-            call_or_die(command_head)
-            call_or_die(command_tail)
-            #if [ ${DEBUG_MODE} -eq 1 ]; then
-            #   ${DIR}/validate_equal_sequences.sh ${A2} ${X1}
-            #fi
-            output_prefix = curr_vcf_file
-            project_command =  PANVC_DIR + "/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
-            call_or_die(project_command)
+        a1 = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
+        a2 = curr_adhoc_ref_aligned_to_ref
+        x1 = curr_vcf_file + ".applied.seq1"
+        x2 = curr_vcf_file + ".applied.seq2"
+        command_head = "head -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x1
+        command_tail = "tail -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x2
+        call_or_die(command_head)
+        call_or_die(command_tail)
+        #TODO
+        #if [ ${DEBUG_MODE} -eq 1 ]; then
+        #   ${DIR}/validate_equal_sequences.sh ${A2} ${X1}
+        #fi
+        output_prefix = curr_vcf_file
+        project_command =  PANVC_DIR + "/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
+        call_or_die(project_command)
 
-            new_ref = output_prefix + ".newrefgapped"
-            gap_positions_bin = PANVC_DIR + "/components/pan_genome_index_real/store_gap_pos/src/store_gaps"
-            assert(Path(new_ref).is_file())  # created also by projector
-            assert(Path(gap_positions_bin).is_file())
-            gap_pos_prefix = new_ref + ".gaps"
-            command_gaps = gap_positions_bin + " " + new_ref + " " + gap_pos_prefix
-            call_or_die(command_gaps)
+        new_ref = output_prefix + ".newrefgapped"
+        gap_positions_bin = PANVC_DIR + "/components/pan_genome_index_real/store_gap_pos/src/store_gaps"
+        assert(Path(new_ref).is_file())  # created also by projector
+        assert(Path(gap_positions_bin).is_file())
+        gap_pos_prefix = new_ref + ".gaps"
+        command_gaps = gap_positions_bin + " " + new_ref + " " + gap_pos_prefix
+        call_or_die(command_gaps)
 
-            msa = output_prefix + ".msa"
-            msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"
-            tmp_vcf = curr_vcf_file + ".normalized.tmp.vcf"
-            command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
-            call_or_die(command_msa2vcf)
+        msa = output_prefix + ".msa"
+        msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"
+        tmp_vcf = curr_vcf_file + ".normalized.tmp.vcf"
+        command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
+        call_or_die(command_msa2vcf)
             
-            normalized_vcf = curr_vcf_file + ".normalized.vcf"
-            renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"
-            renormalizer_command = renormalizer + " " + tmp_vcf + " " + new_ref + ".gaps > " + normalized_vcf 
-            call_or_die(renormalizer_command)
-            if (debug_mode):
-                print ("Validating vcf")
-                validate_vcf_command = VCFCHECK_BIN + " -f " + pgindex_dir + "/std_ref.fa " + normalized_vcf 
-                validation_result = call_and_get_result(validate_vcf_command)
-                if (validation_result != ""):
-                    #Note: the original version of this code built the fai index, but
-                    #apparently vcfcheck builds it whent it is not found.
-                    print ("The normalized VCF does not pass the validation. This should not occur.")
-                    print ("Validation command and output follows:")
-                    print ("command: " + validate_vcf_command)
-                    print ("output : " + validation_result + "\n")
-                    exit(33)
+        normalized_vcf = curr_vcf_file + ".normalized.vcf"
+        renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"
+        renormalizer_command = renormalizer + " " + tmp_vcf + " " + new_ref + ".gaps > " + normalized_vcf 
+        call_or_die(renormalizer_command)
+        if (debug_mode):
+            print ("Validating vcf")
+            validate_vcf_command = VCFCHECK_BIN + " -f " + pgindex_dir + "/std_ref.fa " + normalized_vcf 
+            validation_result = call_and_get_result(validate_vcf_command)
+            if (validation_result != ""):
+                #Note: the original version of this code built the fai index, but
+                #apparently vcfcheck builds it whent it is not found.
+                print ("The normalized VCF does not pass the validation. This should not occur.")
+                print ("Validation command and output follows:")
+                print ("command: " + validate_vcf_command)
+                print ("output : " + validation_result + "\n")
+                exit(33)
 
     vcftools_path = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/"
     vcfconcat = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/vcf-concat"
     assert(Path(vcfconcat).is_file())
     input_vcfs = ""
-    with open(chr_list_file) as f:
-        for line in f:
-            chr_id = str(int(line))
-            input_vcfs = input_vcfs + " " + adhoc_ref_output_folder + "/" +chr_id + "/vars.vcf.normalized.vcf"
+    for chr_id in chr_list:
+        input_vcfs = input_vcfs + " " + adhoc_ref_output_folder + "/" +chr_id + "/vars.vcf.normalized.vcf"
     
     target_vcf =  adhoc_ref_output_folder + "/all_vars_normalized.vcf"
     assert(not Path(target_vcf).exists())
     concat_command = "perl -I " + vcftools_path + " " + vcfconcat + " " + input_vcfs + " > " + target_vcf
     call_or_die(concat_command)
-
-

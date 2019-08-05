@@ -52,8 +52,7 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
     assert(not Path(output_plain_all).exists())
     
     n_refs = PVC_load_var("n_refs", pgindex_dir)
-    chr_list_file = pgindex_dir + "/chr_list.txt" ## TODO: move to a PVC_method
-    chr_list = [line.rstrip('\n') for line in open(chr_list_file)]
+    chr_list = PVC_get_chr_list(pgindex_dir)
     n_chroms = len(chr_list)
     first_chr = chr_list[0]
     for chr_id in chr_list:

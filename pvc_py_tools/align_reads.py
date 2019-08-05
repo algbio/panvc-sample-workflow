@@ -41,10 +41,7 @@ def PVC_align(args):
     assert(read_len < max_read_len)
     
     PVC_save_var(read_len, "read_len", output_folder)
-
-    chr_list_file = pgindex_dir + "/chr_list.txt"
-    assert(os.path.isfile(chr_list_file))
-
+    chr_list = PVC_get_chr_list(pgindex_dir)
 
     print ("Reference contains : " + str(n_refs) + " references")
     print ("Read len           : " + str(read_len))
@@ -71,25 +68,23 @@ def PVC_align(args):
 
     split_command = bamtools_bin + " split -reference -in "+output_folder+"/all_sorted.bam"
     call_or_die(split_command)
+    
+    for chr_id in chr_list:
+        print ("processing chr: " + chr_id)
+        samples_name_file = pgindex_dir + "/" + chr_id + "/names.plain"
+        Path(output_folder + "/" + chr_id).mkdir()
 
-    with open(chr_list_file) as f:
-        for line in f:
-            chr_id = int(line)
-            print ("processing chr: " + str(chr_id))
-            samples_name_file = pgindex_dir + "/" + str(chr_id) + "/names.plain"
-            Path(output_folder + "/" + str(chr_id)).mkdir()
-
-            for curr_ref in range(1,n_refs+1):
-                print ("Ref id: " + str(curr_ref))
-                curr_fasta_name = PVC_sequence_num_to_name(samples_name_file, chr_list_file, ploidity, chr_id, curr_ref)
-                bam_file = output_folder + "/all_sorted.REF_" + curr_fasta_name  + ".bam"
-                sam_file = output_folder + "/" + str(chr_id)  + "/mapped_reads_to" + str(curr_ref) + ".sam.gz"
-                if not os.path.isfile(bam_file):
-                    assert not os.path.exists(sam_file)
-                    Path(sam_file).touch()
-                else:
-                    command = samtools_bin + " view -@ " + str(n_threads) + " " + bam_file + " | gzip > " + sam_file
-                    call_or_die(command)
+        for curr_ref in range(1,n_refs+1):
+            print ("Ref id: " + str(curr_ref))
+            curr_fasta_name = PVC_sequence_num_to_name(samples_name_file, len(chr_list), ploidity, chr_id, curr_ref)
+            bam_file = output_folder + "/all_sorted.REF_" + curr_fasta_name  + ".bam"
+            sam_file = output_folder + "/" + chr_id  + "/mapped_reads_to" + str(curr_ref) + ".sam.gz"
+            if not os.path.isfile(bam_file):
+                assert not os.path.exists(sam_file)
+                Path(sam_file).touch()
+            else:
+                command = samtools_bin + " view -@ " + str(n_threads) + " " + bam_file + " | gzip > " + sam_file
+                call_or_die(command)
 
 if __name__ == "__main__":
     align_main()

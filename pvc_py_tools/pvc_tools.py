@@ -47,27 +47,30 @@ def PVC_load_var(var_name, target_dir):
         ans = myfile.read()
     return int(ans)
 
+def PVC_get_chr_list(pgindex_dir):
+    chr_list_file = pgindex_dir + "/chr_list.txt"
+    chr_list = [line.rstrip('\n') for line in open(chr_list_file)]
+    return chr_list
+
+## This validates that the samples names are the same for all the chromosomes. 
+## If this assumption is not true, the pipeline breaks.
 def PVC_validate_names(pgindex_dir):
     import filecmp
-    ## This validates that the samples names are the same for all the chromosomes. 
-    ## If this assumption is not true, the pipeline breaks.
-    chr_list_file = pgindex_dir + "/chr_list.txt"
-    first_chr = PVC_get_first_chr(chr_list_file)
-    with open(chr_list_file) as f:
-        for line in f:
-            curr_chr = str(int(line))
-            f1 = pgindex_dir + "/" + first_chr + "/n_refs.txt"
-            f2 = pgindex_dir + "/" + curr_chr+ "/n_refs.txt"
-            if (not filecmp.cmp(f1, f1)):
-                print ("Inconsistent input: different chromosmes have different number of genomes in the pan-genome")
-                exit(33)
-            samples_1 = pgindex_dir + "/" + first_chr + "/names.plain"
-            samples_2 = pgindex_dir + "/" + curr_chr+ "/names.plain"
-            if (not PVC_compare_samples_names(samples_1, samples_2)):
-                print ("Inconsistent input: samples have different names in different chromosmes in the pan-genome")
-                print ("File 1: " + samples_1)
-                print ("File 2: " + samples_2)
-                exit(33)
+    chr_list = PVC_get_chr_list(pgindex_dir)
+    first_chr = chr_list[0]
+    for curr_chr in chr_list:
+        f1 = pgindex_dir + "/" + first_chr + "/n_refs.txt"
+        f2 = pgindex_dir + "/" + curr_chr+ "/n_refs.txt"
+        if (not filecmp.cmp(f1, f1)):
+            print ("Inconsistent input: different chromosmes have different number of genomes in the pan-genome")
+            exit(33)
+        samples_1 = pgindex_dir + "/" + first_chr + "/names.plain"
+        samples_2 = pgindex_dir + "/" + curr_chr+ "/names.plain"
+        if (not PVC_compare_samples_names(samples_1, samples_2)):
+            print ("Inconsistent input: samples have different names in different chromosmes in the pan-genome")
+            print ("File 1: " + samples_1)
+            print ("File 2: " + samples_2)
+            exit(33)
 
 def PVC_compare_samples_names(file_1, file_2):
     f1 = open(file_1,"r")
@@ -109,7 +112,7 @@ def PVC_merge_reads(reads_1, reads_2, output_folder):
     print ("Done")
     return output
 
-def PVC_sequence_num_to_name(SAMPLES_FILENAME, CHRS_FILENAME, PLOIDITY, CHR_ID, SEQ_ID):
+def PVC_sequence_num_to_name(SAMPLES_FILENAME, n_chroms , PLOIDITY, CHR_ID, SEQ_ID):
     assert (SEQ_ID >= 1)
     hap_suffix = ""
     if (SEQ_ID != 1) :
@@ -127,10 +130,8 @@ def PVC_sequence_num_to_name(SAMPLES_FILENAME, CHRS_FILENAME, PLOIDITY, CHR_ID, 
     f = open(SAMPLES_FILENAME,"r")
     sample_names = f.readlines()
 
-    total_chroms = sum(1 for line in open(CHRS_FILENAME))
-    
     chr_suffix = ""
-    if (total_chroms != 1) :
+    if (n_chroms != 1) :
         chr_suffix="_CHR"+str(CHR_ID)
 
     #we are currently deleting whitespaces from the samples names;
