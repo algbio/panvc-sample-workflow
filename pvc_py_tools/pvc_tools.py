@@ -88,9 +88,7 @@ def PVC_get_first_chr(chr_list_file):
     return first_chr
 
 def PVC_get_system_ulimit():
-    import subprocess
-    result = subprocess.run(['ulimit -n'], shell=True, stdout=subprocess.PIPE, executable="/bin/bash")
-    nfiles = result.stdout.decode().rstrip()
+    nfiles = call_and_get_result("ulimit -n")
     if (nfiles == "unlimited"):
         nfiles = "10000"
     return int(nfiles)
@@ -186,6 +184,15 @@ def call_or_die(command):
     if ret_code != 0:
         print ("Return code not zero:" + str(ret_code))
         sys.exit(ret_code)
+
+def call_and_get_result(command):    
+    import subprocess
+    print ("About to call:")
+    print (command)
+    print ("--------------")
+    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, executable="/bin/bash")
+    return result.stdout.decode().rstrip()
+    #return result.stdout.decode()
 
 def file_exists_or_die(filename):
     if not os.path.isfile(filename):

@@ -28,7 +28,7 @@ def underlyng_seqs_equals(seq_1, seq_2):
         i = i+1
     return 0
 
-def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME):
+def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
     #### IF FASTA:::
     print ("Input:" + INPUT_FIE)
     records=list(SeqIO.parse(INPUT_FIE, "fasta"));
@@ -126,14 +126,14 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME):
     #print 'Ok:', ok , 'problem:', problem, 'many variations', many_vars;
 
 
-    ## The following is for debug only, as it will slow the code.
+    ## The following is for debug_mode only, as it will slow the code.
     ## Also this verification is done afterwards in bash and in the projector code.
-
-    if (underlyng_seqs_equals(my_seq, new_a) == 1):
-      sys.stderr.write('[apply_vcf.py] Underlyng seqs consistent, Im happy \n');
-    else:
-      sys.stderr.write('[apply_vcf.py] I FAILED, and changed original seq. CHECK apply_vcf.py \n');
-      sys.exit(21); 
+    if (debug_mode):
+        if (underlyng_seqs_equals(my_seq, new_a) == 1):
+            sys.stderr.write('[apply_vcf.py] Underlyng seqs consistent, Im happy \n');
+        else:
+            sys.stderr.write('[apply_vcf.py] I FAILED, and changed original seq. CHECK apply_vcf.py \n');
+            sys.exit(21); 
 
     #print '>A';
     out_file = open(OUTPUT_FILENAME, "w")
@@ -145,7 +145,7 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME):
 
     vcf_file.close();
 
-def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
+def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode):
     
     assert(Path(all_vcf_files).is_file())
     assert(Path(adhoc_ref_output_folder).is_dir())
@@ -153,7 +153,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
     chr_list_file = pgindex_dir + "/chr_list.txt"
     assert(Path(chr_list_file).is_file())
     
-    # TODO: this grep could be done in one pass over all_vcf_files. 
+    # TODO(optimization): this grep could be done in one pass over all_vcf_files. 
     with open(chr_list_file) as f:
         for line in f:
             chr_id = str(int(line))
@@ -182,7 +182,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
             
             curr_aligned_vars =  curr_vcf_file + ".applied"
             assert(not Path(curr_aligned_vars).exists())
-            apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars)
+            apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars, debug_mode)
             assert(Path(curr_aligned_vars).is_file())
 
             a1 = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
@@ -218,34 +218,18 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder):
             renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"
             renormalizer_command = renormalizer + " " + tmp_vcf + " " + new_ref + ".gaps > " + normalized_vcf 
             call_or_die(renormalizer_command)
-            #TODO: the following validation:
-            """
-            VCFCHECK_BIN=${DIR}/../pan_genome_index_real/ext/vcflib/bin/vcfcheck
-            utils_assert_file_exists ${VCFCHECK_BIN}
-            if [ ${DEBUG_MODE} -eq 1 ]; then
-                >&2 echo "Validating VCFs..."
-                TMP_ORIGINAL_REF_FA="${DIR}/tmp_chr${CHR_ID}.fa"
-                echo ">${CHR_ID}" > ${TMP_ORIGINAL_REF_FA}
-                cat ${A1} | tr -d '-' | tr -d '\n' >> ${TMP_ORIGINAL_REF_FA}
-                echo "tmp ref in: ${TMP_ORIGINAL_REF_FA}"
-                SAMTOLS_BIN=${DIR}/../../ext_var_call_pipelines/ext/samtools-0.1.19/samtools
-                utils_assert_file_exists ${SAMTOOLS_BIN}
-                ${SAMTOOLS_BIN} faidx ${TMP_ORIGINAL_REF_FA} 
-                utils_assert_file_exists ${TMP_ORIGINAL_REF_FA}.fai
-                utils_assert_file_exists ${TMP_ORIGINAL_REF_FA}
-                utils_assert_file_exists ${NORMALIZED_VCF}
-                CHECK_OUTPUT=$(${VCFCHECK_BIN}  -f ${TMP_ORIGINAL_REF_FA} ${NORMALIZED_VCF})
-                if [[ ${CHECK_OUTPUT} ]]; then
-                  >&2 echo "Validation failed:"
-                  >&2 echo "${CHECK_OUTPUT}"
-                  utils_die "stopping here..."
-                else
-                  >&2 echo "Validation passed."
-                fi
-
-                rm -f ${TMP_ORIGINAL_REF_FA}*
-            fi
-            """
+            if (debug_mode):
+                print ("Validating vcf")
+                validate_vcf_command = VCFCHECK_BIN + " -f " + pgindex_dir + "/std_ref.fa " + normalized_vcf 
+                validation_result = call_and_get_result(validate_vcf_command)
+                if (validation_result != ""):
+                    #Note: the original version of this code built the fai index, but
+                    #apparently vcfcheck builds it whent it is not found.
+                    print ("The normalized VCF does not pass the validation. This should not occur.")
+                    print ("Validation command and output follows:")
+                    print ("command: " + validate_vcf_command)
+                    print ("output : " + validation_result + "\n")
+                    exit(33)
 
     vcftools_path = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/"
     vcfconcat = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/vcf-concat"
