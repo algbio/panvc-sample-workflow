@@ -2,6 +2,7 @@ import os.path
 import sys
 import subprocess
 from config import *
+from pvc_tools import *
 
 def file_exists_or_die(filename):
     if not os.path.isfile(filename):
@@ -115,8 +116,9 @@ def write_summary(working_dir, pgindex_dir, input_reads_are_paired, reads_1, rea
         adhocref_summary = SummarizeAdhocRef(adhoc_ref_aligned_to_ref, ref_file)
         summary_file.write("Ad-hoc ref summary for chromosome "+ chr_id + "\n")
         summary_file.write(adhocref_summary)
-        summary_file.write("Original reference file: " +  ref_file)
+        summary_file.write("Original reference file: " +  ref_file + "\n")
         summary_file.write("Ad-hoc   reference file: " +  adhocref_summary)
+        summary_file.write("\n")
     
     summary_file.write("\n")
     score_pgm = working_dir + "/logs/scores_matrix.pgm"
