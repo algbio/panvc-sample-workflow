@@ -1,32 +1,20 @@
 import os.path
 import sys
-import subprocess
 from config import *
 from pvc_tools import *
-
-def file_exists_or_die(filename):
-    if not os.path.isfile(filename):
-        print("******")
-        print("Cannot find " + filename)
-        print("Aborting execution")
-        print("******")
-        sys.exit(1);
-
 
 ## To understand the next two functions see: 
 ## https://www.biostars.org/p/138116/#138118
 ## and the SAM/BAM file specification.
 
 def get_NMAPS_FROM_SINGLE_END_READS(bam_filename):
-    command_args = [samtools_bin, "view", "-F", "0x904", "-c", bam_filename]
-    result = subprocess.run(command_args, stdout=subprocess.PIPE)
-    output = result.stdout.decode('utf-8').rstrip()
+    command_str = " ".join([samtools_bin, "view", "-F", "0x904", "-c", bam_filename])
+    output = call_and_get_result(command_str)
     return output
 
 def get_NMAPS_FROM_PAIRED_END_READS(bam_filename):
     command_str = " ".join([samtools_bin, "view", "-F", "0x4", bam_filename, " | cut -f 1 | sort | uniq | wc -l "])
-    result = subprocess.run(command_str, shell=True, stdout=subprocess.PIPE)
-    output = result.stdout.decode('utf-8').rstrip()
+    output = call_and_get_result(command_str)
     return output
     
 
@@ -36,9 +24,8 @@ def count_reads(reads_filename):
         command_args[0] = "zcat"
 
     command_str = " ".join(command_args)
-    #print ("About to run:", command_str)
-    result = subprocess.run(command_str, shell=True, stdout=subprocess.PIPE)
-    output = result.stdout.decode('utf-8').rstrip()
+    output = call_and_get_result(command_str)
+    assert(int(output) > 0)
     return output
 
 def get_NREADS(reads_1, reads_2, input_reads_are_paired):
@@ -79,8 +66,8 @@ def write_summary(working_dir, pgindex_dir, input_reads_are_paired, reads_1, rea
     #E.g. we may want to  deduplicate, and see if it will make any difference?
     BAMFILE_to_pg = working_dir + "/sam_files/all_sorted.bam"
     ## Assert file exists
-    file_exists_or_die(BAMFILE_to_pg)
-    file_exists_or_die(BAMFILE_to_adhoc)
+    assert(Path(BAMFILE_to_pg).is_file())
+    assert(Path(BAMFILE_to_adhoc).is_file())
     
     N_INPUT_READS = get_NREADS(reads_1, reads_2, input_reads_are_paired)
 

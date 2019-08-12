@@ -191,7 +191,7 @@ def call_and_get_result(command):
     print ("About to call:")
     print (command)
     print ("--------------")
-    result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, executable="/bin/bash")
+    result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, executable="/bin/bash")
     return result.stdout.decode().rstrip()
     #return result.stdout.decode()
 
