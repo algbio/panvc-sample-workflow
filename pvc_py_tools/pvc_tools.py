@@ -181,19 +181,27 @@ def call_or_die(command):
     print ("About to call:")
     print (command)
     print ("--------------")
-    ret_code = subprocess.call([command], shell=True, executable="/bin/bash")
-    if ret_code != 0:
-        print ("Return code not zero:" + str(ret_code))
-        sys.exit(ret_code)
-
+    result = subprocess.run(command, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
+    if (result.returncode == 0):
+        return
+    else:
+        print ("Return code not zero:" + str(result.returncode))
+        print ("Stdout:\n" + result.stdout.decode())  
+        print ("Stderr:\n" + result.stderr.decode())  
+        exit(result.returncode)
 def call_and_get_result(command):    
     import subprocess
     print ("About to call:")
     print (command)
     print ("--------------")
-    result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, executable="/bin/bash")
-    return result.stdout.decode().rstrip()
-    #return result.stdout.decode()
+    result = subprocess.run(command, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
+    if (result.returncode == 0):
+        return result.stdout.decode().rstrip()
+    else:
+        print ("Return code not zero:" + str(result.returncode))
+        print ("Stdout:\n" + result.stdout.decode())  
+        print ("Stderr:\n" + result.stderr.decode())
+        exit(result.returncode)
 
 def file_exists_or_die(filename):
     if not os.path.isfile(filename):
