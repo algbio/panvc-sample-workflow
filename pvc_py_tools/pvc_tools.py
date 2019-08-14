@@ -184,6 +184,10 @@ def call_or_die(command):
     result = subprocess.run(command, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, executable="/bin/bash")
     if (result.returncode == 0):
         return
+    if (command.startswith("grep" and result.returncode == 1)
+        assert(result.stdout.decode() == "")
+        assert(result.stderr.decode() == "")
+        return
     else:
         print ("Return code not zero:" + str(result.returncode))
         print ("Stdout:\n" + result.stdout.decode())  
