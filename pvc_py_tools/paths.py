@@ -100,7 +100,6 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
         gap_f = open(output_gapped, "r")
         for line in gap_f:
             newline = line.replace('-','')
-            print (newline)
             with open(output_plain, "a") as tmp_file:
                 tmp_file.write(newline + "\n")
             with open(output_plain_all, "a") as tmp_file:
