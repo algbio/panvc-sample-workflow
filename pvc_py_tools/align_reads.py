@@ -60,6 +60,7 @@ def PVC_align(args):
         call_or_die(alignment_command)
         call_or_die(samtools_view_command)
     else:
+        #TODO: rewrite. A system call with pipes can be dangerous.
         alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | " + samtools_bin + " view -Sb -  > " + output_folder + "/all_mapped.bam"
         call_or_die(alignment_command)
 

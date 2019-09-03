@@ -97,6 +97,7 @@ def PVC_get_system_ulimit():
     return int(nfiles)
 
 def PVC_merge_reads(reads_1, reads_2, output_folder):
+    #TODO: replace bash_command with a native python function. A system call with pipes can be dangerous.
     assert(Path(reads_1).is_file())
     assert(Path(reads_2).is_file())
     output = output_folder + "/reads_ALL_RENAMED.fq.gz"

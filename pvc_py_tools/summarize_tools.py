@@ -13,12 +13,14 @@ def get_NMAPS_FROM_SINGLE_END_READS(bam_filename):
     return output
 
 def get_NMAPS_FROM_PAIRED_END_READS(bam_filename):
+    #TODO: replace with a native python function. A system call with pipes can be dangerous.
     command_str = " ".join([samtools_bin, "view", "-F", "0x4", bam_filename, " | cut -f 1 | sort | uniq | wc -l "])
     output = call_and_get_result(command_str)
     return output
     
 
 def count_reads(reads_filename):
+    #TODO: replace with a native python function. A system call with pipes can be dangerous.
     command_args = ["cat", reads_filename, "| awk 'NR % 4 == 1' | tr ' ' '_' | cut -c 2- | sort | uniq | wc -l"]
     if reads_filename.endswith(".gz"):
         command_args[0] = "zcat"

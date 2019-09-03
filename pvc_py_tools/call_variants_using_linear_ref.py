@@ -71,6 +71,7 @@ def BwaSamtoolsVC(args):
     samtools_sort_command = SAMTOOLS_BIN + " sort -m " + str(max_mem_bytes) + " -f " + working_dir + "/aligned_deduplicated.bam " + working_dir + "/sorted-alns2.bam"
     call_or_die(samtools_sort_command)
 
+    #TODO: rewrite without pipes. A system call with pipes can be dangerous.
     samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view -bvcg - > " + working_dir + "/var.raw.bcf"
     call_or_die(samtools_pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
@@ -226,6 +227,7 @@ def BwaGATKVC(args):
     
     shutil.copy(working_dir + "/raw_variants.vcf", output_file)
     
+    #TODO: replace with a native python function. A system call with pipes can be dangerous.
     if (paired_flag):
         histogram_command = SAMTOOLS_BIN + " view -F 0x4 " + working_dir + "/sortedfixed.bam  | cut -f 5 | sort | uniq -c | awk '{print $2 \" \" $1}' > " + working_dir + "/histogram.txt"
         call_or_die(histogram_command)

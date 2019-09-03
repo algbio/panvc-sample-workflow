@@ -184,6 +184,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         a2 = curr_adhoc_ref_aligned_to_ref
         x1 = curr_vcf_file + ".applied.seq1"
         x2 = curr_vcf_file + ".applied.seq2"
+        #TODO: replace with a native python function. A system call with pipes can be dangerous.
         command_head = "head -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x1
         command_tail = "tail -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x2
         call_or_die(command_head)
