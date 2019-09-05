@@ -146,6 +146,7 @@ def PVC_splitA2M(A2M_FILENAME, target_folder):
     n_refs = 0
     f = open(A2M_FILENAME,"r")
     out_num = 0
+    valid_a2m_input = False
     for line in f:
         if ";" in line :
             continue
@@ -153,7 +154,11 @@ def PVC_splitA2M(A2M_FILENAME, target_folder):
             out_num = out_num + 1
             #close?
             out_file = open(target_folder + '/recombinant.n'+str(out_num)+'.gapped', 'w')
+            valid_a2m_input = True
             continue
+        if (not valid_a2m_input):
+            print("Input file is not a proper A2M file. Headers ('>name') were missing")
+            exit(33)
         out_file.write(line)
         n_refs = n_refs + 1
     return n_refs
