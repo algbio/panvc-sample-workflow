@@ -3,6 +3,7 @@ import sys
 from pvc_tools import *
 from pathlib import Path
 from Bio import SeqIO
+from random import randint
 
 # return 1/0
 def underlyng_seqs_equals(seq_1, seq_2):
@@ -28,14 +29,20 @@ def underlyng_seqs_equals(seq_1, seq_2):
         i = i+1
     return 0
 
-def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
+def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_vcf):
+    if (secondary_vcf is not "NULL"):
+        overlapping_vars_file = open(secondary_vcf, "w")
+    else:
+        #f = open(os.devnull, 'w')
+        overlapping_vars_file = open("/dev/null", "w")
+
     #### IF FASTA:::
-    print ("Input:" + INPUT_FIE)
-    records=list(SeqIO.parse(INPUT_FIE, "fasta"));
+    print ("Input:" + input_fasta)
+    records=list(SeqIO.parse(input_fasta, "fasta"));
     assert(len(records) == 1)
     my_seq=records[0].seq;
     #############
-    #with open(INPUT_FIE, 'r') as f:
+    #with open(input_fasta, 'r') as f:
     #    my_seq= f.readline()
 
 
@@ -45,7 +52,7 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
 
     ## OPEN VCF and modify A and B accordingly
 
-    vcf_file = open(VCF_FILE_NAME);
+    vcf_file = open(input_vcf);
     ok = 0;
     problem = 0;
     many_vars = 0;
@@ -54,7 +61,7 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
     new_a = "";
     new_b = "";
 
-    redundant_vars = 0;
+    overlapping_vars = 0;
     low_qual = 0;
     deletions = 0;
 
@@ -80,9 +87,10 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
 
 
       if (pos < marker):
-        sys.stderr.write('\nSkip a line (redundant var)\n')
+        sys.stderr.write('\nSkip a line (overlapping var)\n')
         #sys.stderr.write(line)
-        redundant_vars = redundant_vars + 1
+        overlapping_vars = overlapping_vars + 1
+        overlapping_vars_file.write(line)
         #assert(False);
         continue
 
@@ -93,7 +101,7 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
       if (str(ref_original) != ref):
         sys.stderr.write('In pos: '+str(pos)+' ref is '+ref+' and var is: '+ var+' extract ref is: '+ref_original);
         problem = problem + 1;
-        sys.stderr.write('Problem with file:'+ VCF_FILE_NAME+' and with file:'+INPUT_FIE+'\n');
+        sys.stderr.write('Problem with file:'+ input_vcf+' and with file:'+input_fasta+'\n');
         assert(False);
       # We are now in the ok case: 
       ok = ok + 1;
@@ -120,7 +128,7 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
     new_a += str(my_seq[marker:]);
     new_b += str(my_seq[marker:]);
     sys.stderr.write('Low Qual lines skipped: '+str(low_qual)+'\n')
-    sys.stderr.write('Redundant lines skipped: '+str(redundant_vars)+'\n')
+    sys.stderr.write('Overlapping lines skipped: '+str(overlapping_vars)+'\n')
     sys.stderr.write('Many Variatios lines skipped: '+str(many_vars)+'\n')
     sys.stderr.write('Vars applied : '+str(ok)+'\n')
     #print 'Ok:', ok , 'problem:', problem, 'many variations', many_vars;
@@ -136,7 +144,7 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
             sys.exit(21); 
 
     #print '>A';
-    out_file = open(OUTPUT_FILENAME, "w")
+    out_file = open(output_alignment, "w")
     out_file.write(new_a + "\n");
     #print '>B\'';
     out_file.write(new_b + "\n");
@@ -144,9 +152,9 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
     
 
     vcf_file.close();
+    overlapping_vars_file.close()
 
 def break_multiallelic_vars(vcf_filename):
-    from random import randint
     import shutil
     tmp_filename = "./tmp_vars_" + str(randint(1,1000000))
     command = vcfbreakmulti_bin + " " + vcf_filename + " > " + tmp_filename
@@ -154,13 +162,7 @@ def break_multiallelic_vars(vcf_filename):
     shutil.copy(tmp_filename, vcf_filename)
     ## TODO: Move instead? or delete tmp_file?
 
-def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode):
-    
-    assert(Path(all_vcf_files).is_file())
-    assert(Path(adhoc_ref_output_folder).is_dir())
-    assert(Path(pgindex_dir).is_dir())
-    chr_list = PVC_get_chr_list(pgindex_dir)
-    
+def split_vcf_by_chrom(all_vcf_files, adhoc_ref_output_folder, chr_list):
     multi_output = {chr_id : open(adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf", "w") for chr_id in chr_list}
     with open(all_vcf_files, 'r') as f:
         for line in f:
@@ -171,42 +173,67 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
             for chr_id in chr_list:
                 if"adhoc_ref_chr" + chr_id in line:
                     multi_output[chr_id].write(line)
-            
-     
     for a,b in multi_output.items():
         b.close()
+
+def validate_equal_underlying_seqs(file_1, file_2):
+    with open(file_1) as f:
+        seq_1 = f.readline().replace("-","")
+    with open(file_2) as f:
+        seq_2 = f.readline().replace("-","")
+    assert(seq_1 == seq_2)
+
+
+def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, vars_output_filename):
+    pass
+
+def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode):
+    
+    assert(Path(all_vcf_files).is_file())
+    assert(Path(adhoc_ref_output_folder).is_dir())
+    assert(Path(pgindex_dir).is_dir())
+    chr_list = PVC_get_chr_list(pgindex_dir)
+    
+    split_vcf_by_chrom(all_vcf_files, adhoc_ref_output_folder, chr_list)
     
     PANVC_DIR = sys.path[0]
     for chr_id in chr_list:
         print ("Normalizing vars in chr: " + chr_id)
         curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
         assert(Path(curr_vcf_file).is_file())
-            
+        
+        break_multiallelic_vars(curr_vcf_file)
+        
         curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
+        
         curr_adhoc_ref_file_fasta = curr_adhoc_ref_prefix + ".fasta"
-        curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
         assert(Path(curr_adhoc_ref_file_fasta).is_file())
-        assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
-            
+        
         curr_aligned_vars =  curr_vcf_file + ".applied"
         assert(not Path(curr_aligned_vars).exists())
-        break_multiallelic_vars(curr_vcf_file)
-        apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars, debug_mode)
+        secondary_vcf = "./tmp_secondary_vcf_" + str(randint(1,10000)) 
+        assert(not Path(secondary_vcf).exists())
+        apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars, debug_mode, secondary_vcf)
         assert(Path(curr_aligned_vars).is_file())
+        assert(Path(secondary_vcf).is_file())
+         
+        curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
+        assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
+            
+        
 
         a1 = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
         a2 = curr_adhoc_ref_aligned_to_ref
-        x1 = curr_vcf_file + ".applied.seq1"
-        x2 = curr_vcf_file + ".applied.seq2"
+        x1 = curr_vcf_file + ".applied_vars.seq1"
+        x2 = curr_vcf_file + ".applied_vars.seq2"
         #TODO: replace with a native python function. A system call with pipes can be dangerous.
         command_head = "head -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x1
         command_tail = "tail -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x2
         call_or_die(command_head)
         call_or_die(command_tail)
-        #TODO
-        #if [ ${DEBUG_MODE} -eq 1 ]; then
-        #   ${DIR}/validate_equal_sequences.sh ${A2} ${X1}
-        #fi
+        
+        if debug_mode:
+            validate_equal_underlying_seqs(a2, x1)
         output_prefix = curr_vcf_file
         project_command =  PANVC_DIR + "/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
         call_or_die(project_command)
