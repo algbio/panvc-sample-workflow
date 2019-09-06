@@ -130,9 +130,9 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
     ## Also this verification is done afterwards in bash and in the projector code.
     if (debug_mode):
         if (underlyng_seqs_equals(my_seq, new_a) == 1):
-            sys.stderr.write('[apply_vcf.py] Underlyng seqs consistent, Im happy \n');
+            sys.stderr.write('apply_vcf: Underlyng seqs consistent, everithing ok.\n');
         else:
-            sys.stderr.write('[apply_vcf.py] I FAILED, and changed original seq. CHECK apply_vcf.py \n');
+            sys.stderr.write('apply_vcf: FAILED, changed original seq.\n');
             sys.exit(21); 
 
     #print '>A';
@@ -145,23 +145,36 @@ def apply_vcf(INPUT_FIE,  VCF_FILE_NAME, OUTPUT_FILENAME, debug_mode):
 
     vcf_file.close();
 
+def break_multiallelic_vars(vcf_filename):
+    from random import randint
+    import shutil
+    tmp_filename = "./tmp_vars_" + str(randint(1,1000000))
+    command = vcfbreakmulti_bin + " " + vcf_filename + " > " + tmp_filename
+    call_or_die(command)
+    shutil.copy(tmp_filename, vcf_filename)
+    ## TODO: Move instead? or delete tmp_file?
+
 def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode):
     
     assert(Path(all_vcf_files).is_file())
     assert(Path(adhoc_ref_output_folder).is_dir())
     assert(Path(pgindex_dir).is_dir())
     chr_list = PVC_get_chr_list(pgindex_dir)
-
-    # TODO(optimization): this grep could be done in one pass over all_vcf_files.
-    for chr_id in chr_list:
-        print ("Splitting " + chr_id)
-        curr_vcf_dir = adhoc_ref_output_folder + "/" + chr_id 
-        curr_vcf_file = curr_vcf_dir + "/vars.vcf"
-        assert(Path(curr_vcf_dir).is_dir())
-        assert(not Path(curr_vcf_file).exists())
-        command  = 'grep "adhoc_ref_chr' + chr_id + '" ' +  all_vcf_files + " > " + curr_vcf_file
-        call_or_die(command)
     
+    multi_output = {chr_id : open(adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf", "w") for chr_id in chr_list}
+    with open(all_vcf_files, 'r') as f:
+        for line in f:
+            if line[0] == "#":
+                for a,b in multi_output.items():
+                    b.write(line)
+                continue
+            for chr_id in chr_list:
+                if"adhoc_ref_chr" + chr_id in line:
+                    multi_output[chr_id].write(line)
+            
+     
+    for a,b in multi_output.items():
+        b.close()
     
     PANVC_DIR = sys.path[0]
     for chr_id in chr_list:
@@ -177,6 +190,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
             
         curr_aligned_vars =  curr_vcf_file + ".applied"
         assert(not Path(curr_aligned_vars).exists())
+        break_multiallelic_vars(curr_vcf_file)
         apply_vcf(curr_adhoc_ref_file_fasta, curr_vcf_file, curr_aligned_vars, debug_mode)
         assert(Path(curr_aligned_vars).is_file())
 
