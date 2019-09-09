@@ -213,12 +213,14 @@ def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adho
     call_or_die(command_gaps)
 
     msa = output_prefix + ".msa"
-    msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"
+    msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"  ## TODO move to config.py
     tmp_vcf = curr_vcf_file + ".normalized.tmp.vcf"
     command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
     call_or_die(command_msa2vcf)
 
-    renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"
+    #MSA2VCF uses the gapped msa as reference, we want to express the variants using the standard reference coordinates:
+    
+    renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"  ## TODO: move to config.py
     renormalizer_command = renormalizer + " " + tmp_vcf + " " + new_ref + ".gaps > " + output_vcf 
     call_or_die(renormalizer_command)
     if (debug_mode):
@@ -285,6 +287,8 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
 
         call_or_die(command_combine)
 
+    #TODO: vcfconcat is using only the headers from the first vcf file, hence losing the  ##contig=<ID=X,length=400> for all X that are not in the first file.
+    #We do not use these header info anyway and the field is optional so this not urgent.
     vcftools_path = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/"
     vcfconcat = PANVC_DIR + "/ext_var_call_pipelines/ext/vcftools_0.1.12b/perl/vcf-concat"
     assert(Path(vcfconcat).is_file())
