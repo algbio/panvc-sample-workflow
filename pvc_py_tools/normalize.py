@@ -184,14 +184,14 @@ def validate_equal_underlying_seqs(file_1, file_2):
     assert(seq_1 == seq_2)
 
 
-def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, curr_vcf_file, output_vcf, debug_mode):
+def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_vcf, debug_mode):
     curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
     assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
         
     a1 = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
     a2 = curr_adhoc_ref_aligned_to_ref
-    x1 = curr_vcf_file + ".applied_vars.seq1"
-    x2 = curr_vcf_file + ".applied_vars.seq2"
+    x1 = output_vcf + ".applied_vars.seq1"
+    x2 = output_vcf + ".applied_vars.seq2"
     #TODO: replace with a native python function. A system call with pipes can be dangerous.
     command_head = "head -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x1
     command_tail = "tail -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x2
@@ -200,7 +200,7 @@ def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adho
 
     if debug_mode:
         validate_equal_underlying_seqs(a2, x1)
-    output_prefix = curr_vcf_file
+    output_prefix = output_vcf
     project_command =  PANVC_DIR + "/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
     call_or_die(project_command)
 
@@ -214,7 +214,7 @@ def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adho
 
     msa = output_prefix + ".msa"
     msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"  ## TODO move to config.py
-    tmp_vcf = curr_vcf_file + ".normalized.tmp.vcf"
+    tmp_vcf = output_vcf + ".normalized.tmp.vcf"
     command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
     call_or_die(command_msa2vcf)
 
@@ -272,10 +272,10 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         apply_vcf(adhoc_ref_fasta, secondary_vcf, aligned_vars_v2, debug_mode, "NULL")
 
         output_1_vcf = curr_vcf_file + ".v1.normalized.vcf" ## TODO: better name than v1 and v2 for each "allele" 
-        projected_alignment_to_vcf(aligned_vars_v1, chr_id, pgindex_dir, curr_adhoc_ref_prefix, curr_vcf_file, output_1_vcf, debug_mode)
+        projected_alignment_to_vcf(aligned_vars_v1, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_1_vcf, debug_mode)
         
         output_2_vcf = curr_vcf_file + ".v2.normalized.vcf"
-        projected_alignment_to_vcf(aligned_vars_v2, chr_id, pgindex_dir, curr_adhoc_ref_prefix, curr_vcf_file, output_2_vcf, debug_mode)
+        projected_alignment_to_vcf(aligned_vars_v2, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_2_vcf, debug_mode)
         
         output_tmp = curr_vcf_file + ".tmp.normalized.vcf"
         command_combine = vcfcombine_bin + " " + output_1_vcf + " " + output_2_vcf + " > " + output_tmp
