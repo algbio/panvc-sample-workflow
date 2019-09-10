@@ -33,11 +33,11 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
     if (secondary_vcf is not "NULL"):
         overlapping_vars_file = open(secondary_vcf, "w")
     else:
-        #f = open(os.devnull, 'w')
         overlapping_vars_file = open("/dev/null", "w")
 
     #### IF FASTA:::
-    print ("Input:" + input_fasta)
+    print ("Input fasta:" + input_fasta)
+    print ("Input VCF: " + input_vcf)
     records=list(SeqIO.parse(input_fasta, "fasta"));
     assert(len(records) == 1)
     my_seq=records[0].seq;
@@ -61,19 +61,28 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
     new_a = "";
     new_b = "";
 
-    overlapping_vars = 0;
-    low_qual = 0;
-    deletions = 0;
+    overlapping_vars = 0
+    low_qual = 0
+    undefined_gt = 0
+    deletions = 0
 
     for line in vcf_file:
       if line.startswith("#"):
         continue;
       values = line.split('\t');
-      pos=int(values[1]) - 1;
-      ref=values[3];
-      var=values[4];
-      qual=values[5];
-      status=values[6];
+      if (len(values) != 10):
+          print("We assumed genotyping one sample at the type.")
+          print("If this changed, method to apply vcf must be revisited.")
+          print("Aborting")
+          exit(33)
+      
+      pos = int(values[1]) - 1;
+      ref = values[3];
+      var = values[4];
+      qual = values[5];
+      status = values[6];
+      sample_data = values[9]
+      
       
       if (qual == "."):
         qual = "0"
@@ -94,6 +103,7 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
         #assert(False);
         continue
 
+      #TODO: implement properly
       if "," in var: 
         many_vars = many_vars + 1;
         continue
@@ -128,6 +138,7 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
     new_a += str(my_seq[marker:]);
     new_b += str(my_seq[marker:]);
     sys.stderr.write('Low Qual lines skipped: '+str(low_qual)+'\n')
+    sys.stderr.write('Undefined GT (ie "./.") lines skipped: '+str(undefined_gt)+'\n')
     sys.stderr.write('Overlapping lines skipped: '+str(overlapping_vars)+'\n')
     sys.stderr.write('Many Variatios lines skipped: '+str(many_vars)+'\n')
     sys.stderr.write('Vars applied : '+str(ok)+'\n')
@@ -251,7 +262,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
         assert(Path(curr_vcf_file).is_file())
         
-        break_multiallelic_vars(curr_vcf_file)
+        #break_multiallelic_vars(curr_vcf_file)
         
         curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
         
