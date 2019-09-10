@@ -156,7 +156,7 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
 
 def break_multiallelic_vars(vcf_filename):
     import shutil
-    tmp_filename = "./tmp_vars_" + str(randint(1,1000000))
+    tmp_filename = vcf_filename +".tmp_vars_" + str(randint(1,1000000))
     command = vcfbreakmulti_bin + " " + vcf_filename + " > " + tmp_filename
     call_or_die(command)
     shutil.copy(tmp_filename, vcf_filename)
@@ -260,7 +260,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         
         aligned_vars_v1 =  curr_vcf_file + ".v1.applied"
         assert(not Path(aligned_vars_v1).exists())
-        secondary_vcf = "./tmp_secondary_vcf_" + str(randint(1,10000)) 
+        secondary_vcf = curr_vcf_file + ".tmp_secondary_vcf_" + str(randint(1,10000)) 
         assert(not Path(secondary_vcf).exists())
         
         apply_vcf(adhoc_ref_fasta, curr_vcf_file, aligned_vars_v1, debug_mode, secondary_vcf)
