@@ -29,7 +29,8 @@ def underlyng_seqs_equals(seq_1, seq_2):
         i = i+1
     return 0
 
-def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_vcf):
+def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_vcf, iteration):
+    assert(iteration == "First" or iteration == "Second")
     if (secondary_vcf is not "NULL"):
         overlapping_vars_file = open(secondary_vcf, "w")
     else:
@@ -78,7 +79,8 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
       
         pos = int(values[1]) - 1;
         ref = values[3];
-        var = values[4];
+        #var = values[4];
+        alts = values[4].split(",");
         qual = values[5];
         status = values[6];
         sample_data = values[9]
@@ -97,11 +99,26 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
             overlapping_vars_file.write(line)
             #assert(False);
             continue
-
-        #TODO: implement properly
-        if "," in var: 
-            many_vars = many_vars + 1;
+        
+        #sample_data looks like "0/1:blabla"
+        if iteration == "First":
+            hap_i = 2
+        else:
+            hap_i = 0
+        var_id = sample_data[hap_i]
+        if var_id == "0":
             continue
+        if var_id == ".":
+            var_id = "1"  # If we wanted to "rescue" a variant?
+            #continue
+        #now var_id is typically 1, but sometimes could be 2 (or three if the vcf were a multisample)
+        if (int(var_id) > len(alts)):
+            if (debug_mode):
+                print ("Current line appears to be malformed, or there is a problem in this parser.")
+                exit(33)
+            else:
+                continue ## just ignoring the offending line
+        var = alts[int(var_id)-1]
       
         if (str(ref_original) != ref):
             sys.stderr.write('In pos: '+str(pos)+' ref is '+ref+' and var is: '+ var+' extract ref is: '+ref_original);
@@ -269,13 +286,13 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         secondary_vcf = curr_vcf_file + ".tmp_secondary_vcf_" + str(randint(1,10000)) 
         assert(not Path(secondary_vcf).exists())
         
-        apply_vcf(adhoc_ref_fasta, curr_vcf_file, aligned_vars_v1, debug_mode, secondary_vcf)
+        apply_vcf(adhoc_ref_fasta, curr_vcf_file, aligned_vars_v1, debug_mode, secondary_vcf, "First")
         assert(Path(aligned_vars_v1).is_file())
         assert(Path(secondary_vcf).is_file())
         
         # TODO: assert: ploidity==2, otherwise we may want to modify this
         aligned_vars_v2 =  curr_vcf_file + ".v2.applied"
-        apply_vcf(adhoc_ref_fasta, secondary_vcf, aligned_vars_v2, debug_mode, "NULL")
+        apply_vcf(adhoc_ref_fasta, secondary_vcf, aligned_vars_v2, debug_mode, "NULL", "Second")
 
         output_1_vcf = curr_vcf_file + ".v1.normalized.vcf" ## TODO: better name than v1 and v2 for each "allele" 
         projected_alignment_to_vcf(aligned_vars_v1, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_1_vcf, debug_mode)
