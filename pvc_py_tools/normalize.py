@@ -206,6 +206,27 @@ def validate_equal_underlying_seqs(file_1, file_2):
         seq_2 = f.readline().replace("-","")
     assert(seq_1 == seq_2)
 
+def remove_last_sample_from_vcf(input_vcf, debug_mode):
+    output = []
+    with open(input_vcf,"r") as input_file:
+        for line in input_file:
+            if line[0] == "#" and not line.startswith("#CHROM"):
+                output.append(line)
+                continue
+            pos = line.rfind("\t")
+            if (pos == -1):
+                if (debug_mode):
+                    print("Wrong vcf, aborting.\n")
+                    print ("Offending line:\n")
+                    print (line)
+                    exit(33)
+                else:
+                    continue
+            new_line = line[0:pos] + "\n"
+            output.append(new_line)
+    with open(input_vcf,"w") as output_file:
+        for line in output:
+            output_file.write(line)
 
 def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_vcf, debug_mode):
     curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
@@ -240,6 +261,9 @@ def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adho
     tmp_vcf = output_vcf + ".normalized.tmp.vcf"
     command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
     call_or_die(command_msa2vcf)
+
+    #MSA2VCF has some shortcommings, some post-processing needed:
+    remove_last_sample_from_vcf(tmp_vcf, debug_mode)
 
     #MSA2VCF uses the gapped msa as reference, we want to express the variants using the standard reference coordinates:
     
