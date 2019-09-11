@@ -67,72 +67,67 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
     deletions = 0
 
     for line in vcf_file:
-      if line.startswith("#"):
-        continue;
-      values = line.split('\t');
-      if (len(values) != 10):
-          print("We assumed genotyping one sample at the type.")
-          print("If this changed, method to apply vcf must be revisited.")
-          print("Aborting")
-          exit(33)
+        if line.startswith("#"):
+            continue;
+        values = line.split('\t');
+        if (len(values) != 10):
+            print("We assumed genotyping one sample at the type.")
+            print("If this changed, method to apply vcf must be revisited.")
+            print("Aborting")
+            exit(33)
       
-      pos = int(values[1]) - 1;
-      ref = values[3];
-      var = values[4];
-      qual = values[5];
-      status = values[6];
-      sample_data = values[9]
+        pos = int(values[1]) - 1;
+        ref = values[3];
+        var = values[4];
+        qual = values[5];
+        status = values[6];
+        sample_data = values[9]
       
-      
-      if (qual == "."):
-        qual = "0"
-      if (float(qual) < 2.0 and status != "PASS"):
-        low_qual = low_qual + 1;
-        continue
+        if (qual == "."):
+            qual = "0"
+        if (float(qual) < 2.0 and status != "PASS"):
+            low_qual = low_qual + 1;
+            continue
+        curr_len = len(ref)
+        ref_original = my_seq[pos:pos+curr_len];
+        if (pos < marker):
+            sys.stderr.write('\nSkip a line (overlapping var)\n')
+            #sys.stderr.write(line)
+            overlapping_vars = overlapping_vars + 1
+            overlapping_vars_file.write(line)
+            #assert(False);
+            continue
 
-      curr_len = len(ref)
-      ref_original = my_seq[pos:pos+curr_len];
+        #TODO: implement properly
+        if "," in var: 
+            many_vars = many_vars + 1;
+            continue
       
-
-
-      if (pos < marker):
-        sys.stderr.write('\nSkip a line (overlapping var)\n')
-        #sys.stderr.write(line)
-        overlapping_vars = overlapping_vars + 1
-        overlapping_vars_file.write(line)
-        #assert(False);
-        continue
-
-      #TODO: implement properly
-      if "," in var: 
-        many_vars = many_vars + 1;
-        continue
-      
-      if (str(ref_original) != ref):
-        sys.stderr.write('In pos: '+str(pos)+' ref is '+ref+' and var is: '+ var+' extract ref is: '+ref_original);
-        problem = problem + 1;
-        sys.stderr.write('Problem with file:'+ input_vcf+' and with file:'+input_fasta+'\n');
-        assert(False);
-      # We are now in the ok case: 
-      ok = ok + 1;
-      new_a += str(my_seq[marker:pos]);
-      new_b += str(my_seq[marker:pos]);
+        if (str(ref_original) != ref):
+            sys.stderr.write('In pos: '+str(pos)+' ref is '+ref+' and var is: '+ var+' extract ref is: '+ref_original);
+            problem = problem + 1;
+            sys.stderr.write('Problem with file:'+ input_vcf+' and with file:'+input_fasta+'\n');
+            assert(False);
+        # We are now in the ok case: 
+        ok = ok + 1;
+        new_a += str(my_seq[marker:pos]);
+        new_b += str(my_seq[marker:pos]);
         
-      token_a = ref;
-      token_b = var;
+        token_a = ref;
+        token_b = var;
       
-      if (len(ref) > len(var)):
-        token_b += "-" * (len(ref) - len(var));   # we do want an alignment again!
-        deletions = deletions + 1;
-      elif (len(ref) < len(var)):
-        token_a += "-" * (len(var) - len(ref));
-      else:
-        assert(len(var) == len(ref));
+        if (len(ref) > len(var)):
+            token_b += "-" * (len(ref) - len(var));   # we do want an alignment again!
+            deletions = deletions + 1;
+        elif (len(ref) < len(var)):
+            token_a += "-" * (len(var) - len(ref));
+        else:
+            assert(len(var) == len(ref));
       
-      new_a += token_a;
-      new_b += token_b;
+        new_a += token_a;
+        new_b += token_b;
       
-      marker = pos + len(ref);
+        marker = pos + len(ref);
 
     # Tail of the file
     new_a += str(my_seq[marker:]);
@@ -262,7 +257,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
         assert(Path(curr_vcf_file).is_file())
         
-        #break_multiallelic_vars(curr_vcf_file)
+        break_multiallelic_vars(curr_vcf_file)
         
         curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
         
