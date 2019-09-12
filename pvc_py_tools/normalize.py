@@ -96,9 +96,12 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
             sys.stderr.write('\nSkip a line (overlapping var)\n')
             #sys.stderr.write(line)
             overlapping_vars = overlapping_vars + 1
+            line = line.replace("0/1", "1/1")
             overlapping_vars_file.write(line)
-            #assert(False);
             continue
+        else:
+            overlapping_vars_file.write(line)
+
         
         #sample_data looks like "0/1:blabla"
         if iteration == "First":
@@ -109,8 +112,8 @@ def apply_vcf(input_fasta,  input_vcf, output_alignment, debug_mode, secondary_v
         if var_id == "0":
             continue
         if var_id == ".":
-            var_id = "1"  # If we wanted to "rescue" a variant?
-            #continue
+            #var_id = "1"  # If we wanted to "rescue" a variant?
+            continue
         #now var_id is typically 1, but sometimes could be 2 (or three if the vcf were a multisample)
         if (int(var_id) > len(alts)):
             if (debug_mode):
@@ -206,6 +209,64 @@ def validate_equal_underlying_seqs(file_1, file_2):
         seq_2 = f.readline().replace("-","")
     assert(seq_1 == seq_2)
 
+def merge_homozygous_variants(vcf_1, vcf_2):
+    output_1 = []
+    output_2 = []
+    input_1 = open(vcf_1, "r")
+    input_2 = open(vcf_2, "r")
+    
+    line_2 = input_2.readline()
+    line_1 = input_1.readline()
+    
+    while line_1 and line_2:
+        if line_1[0] == "#":
+            output_1.append(line_1)
+            line_1 = input_1.readline()
+            continue
+        if line_2[0] == "#":
+            output_2.append(line_2)
+            line_2 = input_2.readline()
+            continue
+        pos_1 = int(line_1.split('\t')[1]) - 1;
+        pos_2 = int(line_2.split('\t')[1]) - 1;
+        if (pos_1 == pos_2):
+            if (line_1 == line_2):
+                line_1 = line_1.replace("0/1", "1/1")
+                output_1.append(line_1)
+                pass
+            else:
+                output_1.append(line_1)
+                output_2.append(line_2)
+            line_1 = input_1.readline()
+            line_2 = input_2.readline()
+            continue
+        if (pos_1 < pos_2):
+            output_1.append(line_1)
+            line_1 = input_1.readline()
+            continue
+        else:
+            output_2.append(line_2)
+            line_2 = input_2.readline()
+            continue
+    
+    ##Read remaining of file 
+    while line_1:
+        output_1.append(line_1)
+        line_1 = input_1.readline()
+    while line_2:
+        output_2.append(line_2)
+        line_2 = input_2.readline()
+    #Write output to same files: 
+    input_1.close()
+    input_2.close()
+    with open(vcf_1,"w") as output_file:
+        for line in output_1:
+            output_file.write(line)
+    with open(vcf_2,"w") as output_file:
+        for line in output_2:
+            output_file.write(line)
+
+#TODO: rename method, as now the postprocessing does more.
 def remove_last_sample_from_vcf(input_vcf, debug_mode):
     output = []
     with open(input_vcf,"r") as input_file:
@@ -223,6 +284,10 @@ def remove_last_sample_from_vcf(input_vcf, debug_mode):
                 else:
                     continue
             new_line = line[0:pos] + "\n"
+            
+            if not line.startswith("#CHROM"):
+                new_line = new_line.replace("1/1", "0/1")
+            
             output.append(new_line)
     with open(input_vcf,"w") as output_file:
         for line in output:
@@ -298,7 +363,8 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
         assert(Path(curr_vcf_file).is_file())
         
-        break_multiallelic_vars(curr_vcf_file)
+        # This not needed anymore, as we are diploid-aware when applying vcf now.
+        #break_multiallelic_vars(curr_vcf_file)  
         
         curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
         
@@ -324,9 +390,12 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         output_2_vcf = curr_vcf_file + ".v2.normalized.vcf"
         projected_alignment_to_vcf(aligned_vars_v2, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_2_vcf, debug_mode)
         
+        merge_homozygous_variants(output_1_vcf, output_2_vcf)
+        
         output_tmp = curr_vcf_file + ".tmp.normalized.vcf"
         command_combine = vcfcombine_bin + " " + output_1_vcf + " " + output_2_vcf + " > " + output_tmp
         call_or_die(command_combine)
+        #exit(33)
         
         output_vcf = curr_vcf_file + ".normalized.vcf"
         command_create_multi = vcfcreatemulti_bin + " " + output_tmp + " > " + output_vcf
