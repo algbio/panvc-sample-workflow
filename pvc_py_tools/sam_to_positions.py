@@ -184,7 +184,7 @@ def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N
         ref_id= 1 +(i//n_chrs)
         chr_id=chr_list[i%n_chrs]
         ## This validation is no longer used, as it would require new parameter to this script.
-        #sample_name = sequence_num_to_name(SAMPLES_FILENAME, PLOIDITY, ref_id)
+        #sample_name = sequence_num_to_name(SAMPLES_FILENAME, PLOIDY, ref_id)
         #seq_name=sample_name+"_CHR"+str(chr_id)
         #print >> log_file, 'My name:'+seq_name;
         #print >> log_file, 'FA name:'+name;

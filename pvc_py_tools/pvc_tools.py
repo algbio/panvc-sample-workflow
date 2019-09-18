@@ -113,13 +113,13 @@ def PVC_merge_reads(reads_1, reads_2, output_folder):
     print ("Done")
     return output
 
-def PVC_sequence_num_to_name(SAMPLES_FILENAME, n_chroms , PLOIDITY, CHR_ID, SEQ_ID):
+def PVC_sequence_num_to_name(SAMPLES_FILENAME, n_chroms , PLOIDY, CHR_ID, SEQ_ID):
     assert (SEQ_ID >= 1)
     hap_suffix = ""
     if (SEQ_ID != 1) :
         offset = SEQ_ID - 2
-        target_line = 1 + (offset//PLOIDITY)
-        hap_suffix = "_" + str(offset % PLOIDITY)
+        target_line = 1 + (offset//PLOIDY)
+        hap_suffix = "_" + str(offset % PLOIDY)
     else:
         target_line = 0
         hap_suffix = ""

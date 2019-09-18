@@ -12,7 +12,7 @@ def align_main():
 
     parser.add_argument("--debug", action='store_true', help="Will run extra checks, degrading performance.")
     parser.add_argument("-t", "--n_threads",  type=int, default=1,    help="Number of threads")
-    parser.add_argument("-p", "--ploidy",  type=int, default=2,    help="Ploidity of the genomes")
+    parser.add_argument("-p", "--ploidy",  type=int, default=2,    help="Ploidy of the genomes")
     args = parser.parse_args()
     PVC_align(args)
 
