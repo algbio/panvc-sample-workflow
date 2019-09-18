@@ -36,6 +36,7 @@ def BwaSamtoolsVC(args):
     reads_file_2 = args.reads_file_2
     n_threads = args.n_threads
     output_file = args.output_file
+    ploidy = args.ploidy
     
     debug_mode = args.debug
     paired_flag = False if reads_file_2 == "" else True
@@ -72,7 +73,7 @@ def BwaSamtoolsVC(args):
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
-    samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view -bvcg - > " + working_dir + "/var.raw.bcf"
+    samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view --ploidy " + ploidy + " -bvcg - > " + working_dir + "/var.raw.bcf"
     call_or_die(samtools_pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 
@@ -89,6 +90,7 @@ def BwaGATKVC(args):
     reads_file_2 = args.reads_file_2
     n_threads = args.n_threads
     output_file = args.output_file
+    ploidy = args.ploidy
     
     debug_mode = args.debug
     paired_flag = False if reads_file_2 == "" else True
@@ -220,7 +222,7 @@ def BwaGATKVC(args):
     print (" Call variants:")
     print ("############################################")
     java_opt = ""
-    vc_command = GATK_BIN + " --java-options -Xmx" + max_memory_MB + "M " + java_opt + " HaplotypeCaller -R " + reference + " -I " + working_dir + "/sortedfixed.bam -O " + working_dir + "/raw_variants.vcf"
+    vc_command = GATK_BIN + " --java-options -Xmx" + max_memory_MB + "M " + java_opt + " HaplotypeCaller -ploidy " + ploidy  + " -R " + reference + " -I " + working_dir + "/sortedfixed.bam -O " + working_dir + "/raw_variants.vcf"
     call_or_die(vc_command)
 ## -L ${interval_list} \ 
 ## -contamination ${default=0 contamination} ${true="-ERC GVCF" false="" make_gvcf}              

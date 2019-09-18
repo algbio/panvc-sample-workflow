@@ -12,7 +12,7 @@ def align_main():
 
     parser.add_argument("--debug", action='store_true', help="Will run extra checks, degrading performance.")
     parser.add_argument("-t", "--n_threads",  type=int, default=1,    help="Number of threads")
-    parser.add_argument("-p", "--ploidity",  type=int, default=2,    help="Ploidity of the genomes")
+    parser.add_argument("-p", "--ploidy",  type=int, default=2,    help="Ploidity of the genomes")
     args = parser.parse_args()
     PVC_align(args)
 
@@ -27,7 +27,7 @@ def PVC_align(args):
     debug_mode = args.debug
     n_threads = args.n_threads
     max_edit_distance = PVC_load_var("max_edit_distance", pgindex_dir)
-    ploidity = args.ploidity
+    ploidy = args.ploidy
 
     ensure_dir(output_folder)
 
@@ -77,7 +77,7 @@ def PVC_align(args):
 
         for curr_ref in range(1,n_refs+1):
             print ("Ref id: " + str(curr_ref))
-            curr_fasta_name = PVC_sequence_num_to_name(samples_name_file, len(chr_list), ploidity, chr_id, curr_ref)
+            curr_fasta_name = PVC_sequence_num_to_name(samples_name_file, len(chr_list), ploidy, chr_id, curr_ref)
             bam_file = output_folder + "/all_sorted.REF_" + curr_fasta_name  + ".bam"
             sam_file = output_folder + "/" + chr_id  + "/mapped_reads_to" + str(curr_ref) + ".sam.gz"
             if not os.path.isfile(bam_file):
