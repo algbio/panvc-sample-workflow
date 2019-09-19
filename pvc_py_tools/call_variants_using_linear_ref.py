@@ -13,6 +13,7 @@ def VC_main():
     parser.add_argument("working_dir"           , help="Working directroy, where intermediate files live.")
     parser.add_argument("-r1", "--reads_file_1",  required=True, help="reads file 1           ")
     parser.add_argument("-r2", "--reads_file_2",  default="",    help="reads file 2 (optional)")
+    parser.add_argument("-p", "--ploidy",  type=int, default=2,    help="Ploidy of the genomes")
 
     parser.add_argument("--debug", action='store_true', help="Will run extra checks, degrading performance.")
     parser.add_argument("-t", "--n_threads",      type=int, default=1,    help="Number of threads")
