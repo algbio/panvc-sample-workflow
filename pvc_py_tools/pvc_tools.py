@@ -3,12 +3,10 @@ import sys
 import gzip
 from config import *
 from pathlib import Path
-#from config import *
 
 def PVC_make_std_ref(args):
     output_file = args.output_dir + "/std_ref.fa"
-    out_file = open(output_file, "w")
-    with open(args.chr_list_file) as f:
+    with open(args.chr_list_file) as f, open(output_file, "w") as out_file:
         for line in f:
             chr_id = str(int(line))
             print ("processing chr: " + chr_id)
@@ -18,6 +16,17 @@ def PVC_make_std_ref(args):
             with open(src_file) as g:
                 for seq in g:
                     out_file.write(seq.replace("-","").rstrip() + "\n")
+    
+    # Index here in order to allow multiple instances of panvc_call_variants operate on the same index.
+    bwa_index_command = BWA_BIN + " index " + output_file
+    call_or_die(bwa_index_command)
+
+    faidx_command = SAMTOOLS_BIN + " faidx " + output_file
+    call_or_die(faidx_command)
+
+    output_dict = args.output_dir + "/std_ref.dict"
+    gatk_dict_command = GATK_BIN + " CreateSequenceDictionary --REFERENCE=" + output + " --OUTPUT=" + output_dict
+    call_or_die(gatk_dict_command)
 
     
 def PVC_read_len_from_reads(reads_file):

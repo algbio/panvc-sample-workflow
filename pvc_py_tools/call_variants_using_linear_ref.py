@@ -50,8 +50,6 @@ def BwaSamtoolsVC(args):
 
     print ("Bwa path: " + BWA_BIN)
     assert(Path(BWA_BIN).is_file())
-    bwa_index_command = BWA_BIN + " index " + reference
-    call_or_die(bwa_index_command)
 
     bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
     call_or_die(bwa_align_command)
@@ -104,51 +102,28 @@ def BwaGATKVC(args):
 
     assert(Path(BWA_BIN).is_file())
     
-    reference_basename = os.path.splitext(reference)[0]
-    reference_dict = reference_basename + ".dict"
-
-    print ("############################################")
-    print (" Index reference") 
-    print ("############################################")
-    bwa_index_command = BWA_BIN + " index " + reference
-    call_or_die(bwa_index_command)
-    
-    reference_is_indexed = False  ##TODO(optimization): actual check. This would be automatic using snake-make
-    if (not reference_is_indexed):
-        bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
-        #TODO(scalability): -a allows whole genome. should it be a parameter or should it be infered from the context
-        call_or_die(bwa_align_command)
-
-    faidx_command = SAMTOOLS_BIN + " faidx " + reference
-    call_or_die(faidx_command)
-    
-    if (Path(reference_dict).exists()):
-        assert(Path(reference_dict).is_file)
-        Path(reference_dict).unlink()
-    
-    gatk_dict_command = GATK_BIN + " CreateSequenceDictionary --REFERENCE=" + reference + " --OUTPUT=" + reference_dict
-    call_or_die(gatk_dict_command)
-
     print ("############################################")
     print (" Read alignment")
     print ("############################################")
-    
+    bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
+    #TODO(scalability): -a allows whole genome. should it be a parameter or should it be infered from the context
+    call_or_die(bwa_align_command)
+
     bwa_align_command = BWA_BIN + " mem -K 100000000 -v 3 -t 16 -Y " + reference + " " + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned_reads.sam"
     call_or_die(bwa_align_command)
 
-######
-## The "uBAM" issue of GATK
-## -> convert original fastq reads to uBAM
+    ######
+    ## The "uBAM" issue of GATK
+    ## -> convert original fastq reads to uBAM
 
     fq2sam_command =  GATK_BIN + " --java-options -Xmx" + max_memory_MB + "M  FastqToSam" 
     fq2sam_command = fq2sam_command + " -F1 " + reads_file_1
     if (paired_flag):
         fq2sam_command = fq2sam_command + " -F2 " + reads_file_2
     fq2sam_command = fq2sam_command + " --SAMPLE_NAME sample1 -O " + working_dir + "/input_reads_unaligned.ubam"
-
     call_or_die(fq2sam_command)
 
-## merge above uBAM file with the output of BwaMem
+    ## merge above uBAM file with the output of BwaMem
     merge_command = GATK_BIN \
             + " MergeBamAlignment"\
             + " --VALIDATION_STRINGENCY SILENT"\
@@ -171,12 +146,12 @@ def BwaGATKVC(args):
             + " --ALIGNER_PROPER_PAIR_FLAGS true"\
             + " --UNMAP_CONTAMINANT_READS true"
 
-#Probably too much, relying on defaults
-#merge_comm+=' --java-options "-Dsamjdk.compression_level=${compression_level}"'
-#merge_comm+=' --PROGRAM_GROUP_VERSION "${bwa_version}"'
-#merge_comm+=' --PROGRAM_RECORD_ID bwamem'
-#merge_comm+=' --PROGRAM_GROUP_NAME bwamem'
-#merge_comm+=' --PROGRAM_GROUP_COMMAND_LINE '${BWA_COMMAND}
+    #Probably too much, relying on defaults
+    #merge_comm+=' --java-options "-Dsamjdk.compression_level=${compression_level}"'
+    #merge_comm+=' --PROGRAM_GROUP_VERSION "${bwa_version}"'
+    #merge_comm+=' --PROGRAM_RECORD_ID bwamem'
+    #merge_comm+=' --PROGRAM_GROUP_NAME bwamem'
+    #merge_comm+=' --PROGRAM_GROUP_COMMAND_LINE '${BWA_COMMAND}
     call_or_die(merge_command)
     
     print ("############################################")
@@ -214,10 +189,10 @@ def BwaGATKVC(args):
     print ("############################################")
     print (" Base recalibration:")
     print ("############################################")
-# We Skip that for now, as we dont have a knownSites. 
-# For that case, the documentation suggested call SNP variants once, and use those as the known sites.
-# And repeat until convergence ... :S
-#java -jar GenomeAnalysisTK.jar -T BaseRecalibrator -R reference.fa -I realigned_reads.bam -knownSites dbsnp.vcf -knownSites gold_indels.vcf -o recal_data.table 
+    # We Skip that for now, as we dont have a knownSites. 
+    # For that case, the documentation suggested call SNP variants once, and use those as the known sites.
+    # And repeat until convergence ... :S
+    #java -jar GenomeAnalysisTK.jar -T BaseRecalibrator -R reference.fa -I realigned_reads.bam -knownSites dbsnp.vcf -knownSites gold_indels.vcf -o recal_data.table 
     
     print ("############################################")
     print (" Call variants:")
@@ -225,8 +200,8 @@ def BwaGATKVC(args):
     java_opt = ""
     vc_command = GATK_BIN + " --java-options -Xmx" + max_memory_MB + "M " + java_opt + " HaplotypeCaller -ploidy " + str(ploidy) + " -R " + reference + " -I " + working_dir + "/sortedfixed.bam -O " + working_dir + "/raw_variants.vcf"
     call_or_die(vc_command)
-## -L ${interval_list} \ 
-## -contamination ${default=0 contamination} ${true="-ERC GVCF" false="" make_gvcf}              
+    ## -L ${interval_list} \ 
+    ## -contamination ${default=0 contamination} ${true="-ERC GVCF" false="" make_gvcf}              
     
     shutil.copy(working_dir + "/raw_variants.vcf", output_file)
     
