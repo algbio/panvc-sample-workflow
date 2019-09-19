@@ -16,17 +16,23 @@ def PVC_make_std_ref(args):
             with open(src_file) as g:
                 for seq in g:
                     out_file.write(seq.replace("-","").rstrip() + "\n")
-    
     # Index here in order to allow multiple instances of panvc_call_variants operate on the same index.
-    bwa_index_command = BWA_BIN + " index " + output_file
-    call_or_die(bwa_index_command)
+    PVC_index_ref(output_file)
+    
+def PVC_index_ref(output_file):
+    if not os.path.isfile(output_file + ".bwt"):
+        bwa_index_command = BWA_BIN + " index " + output_file
+        call_or_die(bwa_index_command)
 
-    faidx_command = SAMTOOLS_BIN + " faidx " + output_file
-    call_or_die(faidx_command)
+    if not os.path.isfile(output_file + ".fai"):
+        faidx_command = SAMTOOLS_BIN + " faidx " + output_file
+        call_or_die(faidx_command)
 
-    output_dict = args.output_dir + "/std_ref.dict"
-    gatk_dict_command = GATK_BIN + " CreateSequenceDictionary --REFERENCE=" + output_file + " --OUTPUT=" + output_dict
-    call_or_die(gatk_dict_command)
+    output_ext_removed = os.path.splitext(output_file)[0]
+    output_dict = output_ext_removed + ".dict"
+    if not os.path.isfile(output_dict):
+        gatk_dict_command = GATK_BIN + " CreateSequenceDictionary --REFERENCE=" + output_file + " --OUTPUT=" + output_dict
+        call_or_die(gatk_dict_command)
 
     
 def PVC_read_len_from_reads(reads_file):

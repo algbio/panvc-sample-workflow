@@ -51,6 +51,7 @@ def BwaSamtoolsVC(args):
     print ("Bwa path: " + BWA_BIN)
     assert(Path(BWA_BIN).is_file())
 
+    PVC_index_ref(reference)
     bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
     call_or_die(bwa_align_command)
     
@@ -105,9 +106,7 @@ def BwaGATKVC(args):
     print ("############################################")
     print (" Read alignment")
     print ("############################################")
-    # Reference is located in the output directory.
-    bwa_index_command = BWA_BIN + " index " + reference
-    call_or_die(bwa_index_command)
+    PVC_index_ref(reference)
 
     bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
     #TODO(scalability): -a allows whole genome. should it be a parameter or should it be infered from the context
