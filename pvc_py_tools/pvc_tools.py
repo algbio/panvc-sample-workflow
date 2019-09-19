@@ -25,7 +25,7 @@ def PVC_make_std_ref(args):
     call_or_die(faidx_command)
 
     output_dict = args.output_dir + "/std_ref.dict"
-    gatk_dict_command = GATK_BIN + " CreateSequenceDictionary --REFERENCE=" + output + " --OUTPUT=" + output_dict
+    gatk_dict_command = GATK_BIN + " CreateSequenceDictionary --REFERENCE=" + output_file + " --OUTPUT=" + output_dict
     call_or_die(gatk_dict_command)
 
     
