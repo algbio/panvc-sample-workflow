@@ -73,7 +73,9 @@ def BwaSamtoolsVC(args):
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
-    samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view --ploidy " + str(ploidy) + " -bvcg - > " + working_dir + "/var.raw.bcf"
+	# FIXME enable passing the ploidy after upgrading bcftools.
+    #samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view --ploidy " + str(ploidy) + " -bvcg - > " + working_dir + "/var.raw.bcf"
+    samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view -bvcg - > " + working_dir + "/var.raw.bcf"
     call_or_die(samtools_pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 
