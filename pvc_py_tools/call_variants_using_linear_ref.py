@@ -13,6 +13,8 @@ def VC_main():
     parser.add_argument("working_dir"           , help="Working directroy, where intermediate files live.")
     parser.add_argument("-r1", "--reads_file_1",  required=True, help="reads file 1           ")
     parser.add_argument("-r2", "--reads_file_2",  default="",    help="reads file 2 (optional)")
+    parser.add_argument("-p", "--ploidy",  type=int, default=2,    help="Ploidy of the genomes")
+    parser.add_argument("-f", "--ploidy-file", type = str, default = "GRCh38", help = "Ploidy for bcftools when using SAMTOOLS for alignment")
 
     parser.add_argument("--debug", action='store_true', help="Will run extra checks, degrading performance.")
     parser.add_argument("-t", "--n_threads",      type=int, default=1,    help="Number of threads")
@@ -37,6 +39,7 @@ def BwaSamtoolsVC(args):
     n_threads = args.n_threads
     output_file = args.output_file
     ploidy = args.ploidy
+    ploidy_file = args.ploidy_file
     
     debug_mode = args.debug
     paired_flag = False if reads_file_2 == "" else True
@@ -73,7 +76,7 @@ def BwaSamtoolsVC(args):
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
-    samtools_pileup_command = "%s mpileup -u %s | %s call --ploidy %d --output-type u --variants-only --multiallelic-caller > %s" % (SAMTOOLS_BIN, working_dir + "/sorted-alns2.bam", BCFTOOLS_BIN, ploidy, working_dir + "/var.raw.bcf")
+    samtools_pileup_command = "%s mpileup --output-type u --fasta-ref %s %s | %s call --ploidy %s --output-type u --variants-only --multiallelic-caller > %s" % (BCFTOOLS_BIN, reference, working_dir + "/sorted-alns2.bam", BCFTOOLS_BIN, ploidy_file, working_dir + "/var.raw.bcf")
     call_or_die(samtools_pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 
