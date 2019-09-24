@@ -18,7 +18,7 @@ def validate_sorted_file(input_filename):
     with open(input_filename, "r") as myfile:
         for line in myfile:
             number = int(line.rstrip())
-            if (number <= prev):
+            if (number < prev):
                 print ("Error validating file: " + input_filename)
                 print ("The following values are in the wrong order: " + str(prev) + " , " + str(number))
                 exit(33)
