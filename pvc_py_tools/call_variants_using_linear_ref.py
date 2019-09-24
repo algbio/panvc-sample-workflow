@@ -30,7 +30,7 @@ def call_variants_with_standard_methods(args):
 
 
 def BwaSamtoolsVC(args):
-    max_mem_bytes = str(args.max_memory_MB) + "000000"
+    max_mem_bytes = args.max_memory_MB * 1024 * 1024
     working_dir = args.working_dir
     reference = args.reference
     reads_file_1 = args.reads_file_1
