@@ -69,11 +69,11 @@ def BwaSamtoolsVC(args):
     call_or_die(markdup_comm)
     
 
-    samtools_sort_command = SAMTOOLS_BIN + " sort -m " + str(max_mem_bytes) + " -f " + working_dir + "/aligned_deduplicated.bam " + working_dir + "/sorted-alns2.bam"
+    samtools_sort_command = "%s sort -@ %d -m %d -f %s %s" % (SAMTOOLS_BIN, n_threads, max_mem_bytes, working_dir + "/aligned_deduplicated.bam", working_dir + "/sorted-alns2.bam")
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
-    samtools_pileup_command = SAMTOOLS_BIN + " mpileup -uf " + reference + " " + working_dir + "/sorted-alns2.bam | " + BCFTOOLS_BIN + " view --ploidy " + str(ploidy) + " -bvcg - > " + working_dir + "/var.raw.bcf"
+    samtools_pileup_command = "%s mpileup -u %s | %s view --ploidy %d -bvcg - > %s" % (SAMTOOLS_BIN, working_dir + "/sorted-alns2.bam", BCFTOOLS_BIN, ploidy, working_dir + "/var.raw.bcf")
     call_or_die(samtools_pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 

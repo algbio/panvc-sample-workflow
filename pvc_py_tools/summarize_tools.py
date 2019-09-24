@@ -8,13 +8,13 @@ from pvc_tools import *
 ## and the SAM/BAM file specification.
 
 def get_NMAPS_FROM_SINGLE_END_READS(bam_filename):
-    command_str = " ".join([samtools_bin, "view", "-F", "0x904", "-c", bam_filename])
+    command_str = " ".join([SAMTOOLS_BIN, "view", "-F", "0x904", "-c", bam_filename])
     output = call_and_get_result(command_str)
     return output
 
 def get_NMAPS_FROM_PAIRED_END_READS(bam_filename):
     #TODO: replace with a native python function. A system call with pipes can be dangerous.
-    command_str = " ".join([samtools_bin, "view", "-F", "0x4", bam_filename, " | cut -f 1 | sort | uniq | wc -l "])
+    command_str = " ".join([SAMTOOLS_BIN, "view", "-F", "0x4", bam_filename, " | cut -f 1 | sort | uniq | wc -l "])
     output = call_and_get_result(command_str)
     return output
     

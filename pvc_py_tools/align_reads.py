@@ -56,15 +56,15 @@ def PVC_align(args):
     if debug_mode:
         sam_all_plain = output_folder + "/mapped_reads_all.sam"
         alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all + " --output="+ sam_all_plain 
-        samtools_view_command = samtools_bin + " view -Sb " + sam_all_plain + " > " + output_folder + "/all_mapped.bam"
+        samtools_view_command = SAMTOOLS_BIN + " view -Sb " + sam_all_plain + " > " + output_folder + "/all_mapped.bam"
         call_or_die(alignment_command)
         call_or_die(samtools_view_command)
     else:
         #TODO: rewrite. A system call with pipes can be dangerous.
-        alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | " + samtools_bin + " view -Sb -  > " + output_folder + "/all_mapped.bam"
+        alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | " + SAMTOOLS_BIN + " view -Sb -  > " + output_folder + "/all_mapped.bam"
         call_or_die(alignment_command)
 
-    sort_command = samtools_bin + " sort -@ " + str(n_threads) + " " + output_folder+"/all_mapped.bam" + " " + output_folder + "/all_sorted"
+    sort_command = "%s sort -@ %d -f %s %s" % (SAMTOOLS_BIN, n_threads, output_folder + "/all_mapped.bam", output_folder + "/all_sorted.bam")
     call_or_die(sort_command)
 
     split_command = bamtools_bin + " split -reference -in "+output_folder+"/all_sorted.bam"
@@ -84,7 +84,7 @@ def PVC_align(args):
                 assert not os.path.exists(sam_file)
                 Path(sam_file).touch()
             else:
-                command = samtools_bin + " view -@ " + str(n_threads) + " " + bam_file + " | gzip > " + sam_file
+                command = SAMTOOLS_BIN + " view -@ " + str(n_threads) + " " + bam_file + " | gzip > " + sam_file
                 call_or_die(command)
 
 if __name__ == "__main__":
