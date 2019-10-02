@@ -64,7 +64,8 @@ def PVC_align(args):
         alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | " + SAMTOOLS_BIN + " view -Sb -  > " + output_folder + "/all_mapped.bam"
         call_or_die(alignment_command)
 
-    sort_command = "%s sort -@ %d -f %s %s" % (SAMTOOLS_BIN, n_threads, output_folder + "/all_mapped.bam", output_folder + "/all_sorted.bam")
+    # FIXME: add memory limit.
+    sort_command = "%s sort -@ %d --output-fmt BAM -o %s %s" % (SAMTOOLS_BIN, n_threads, output_folder + "/all_sorted.bam", output_folder + "/all_mapped.bam")
     call_or_die(sort_command)
 
     split_command = bamtools_bin + " split -reference -in "+output_folder+"/all_sorted.bam"
