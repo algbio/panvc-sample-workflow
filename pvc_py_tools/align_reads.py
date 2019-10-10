@@ -38,7 +38,7 @@ def PVC_align(args):
     n_refs = PVC_load_var("n_refs", pgindex_dir)
     max_read_len = PVC_load_var("max_read_len", pgindex_dir)
     read_len = PVC_read_len_from_reads(reads_all)
-    assert(read_len < max_read_len)
+    assert(read_len <= max_read_len)
     
     PVC_save_var(read_len, "read_len", output_folder)
     chr_list = PVC_get_chr_list(pgindex_dir)
