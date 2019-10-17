@@ -31,7 +31,6 @@ def call_variants_with_standard_methods(args):
 
 
 def BwaSamtoolsVC(args):
-    max_mem_bytes = args.max_memory_MB * 1024 * 1024
     working_dir = args.working_dir
     reference = args.reference
     reads_file_1 = args.reads_file_1
@@ -71,7 +70,7 @@ def BwaSamtoolsVC(args):
     call_or_die(markdup_comm)
     
 
-    samtools_sort_command = "%s sort -@ %d -m %d --output-fmt BAM -o %s %s" % (SAMTOOLS_BIN, n_threads, max_mem_bytes, working_dir + "/sorted-alns2.bam", working_dir + "/aligned_deduplicated.bam")
+    samtools_sort_command = "%s sort -@ %d -m %.0f --output-fmt BAM -o %s %s" % (SAMTOOLS_BIN, n_threads, 1024.0 * 1024.0 * args.max_memory_MB / n_threads, working_dir + "/sorted-alns2.bam", working_dir + "/aligned_deduplicated.bam")
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
