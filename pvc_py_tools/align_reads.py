@@ -55,13 +55,19 @@ def PVC_align(args):
     alignment_command = ""
     if debug_mode:
         sam_all_plain = output_folder + "/mapped_reads_all.sam"
-        alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all + " --output="+ sam_all_plain 
-        samtools_view_command = SAMTOOLS_BIN + " view -Sb " + sam_all_plain + " > " + output_folder + "/all_mapped.bam"
+        sam_all_filtered = output_folder + "/mapped_reads_filtered.sam"
+        alignment_command = "%s %s %s %s --output=%s" % (chic_align_bin, chic_align_flags, sequence_all_file, reads_all, sam_all_plain)
+        filter_command = "%s --max-ed %d < %s > %s" % (filter_by_ed, max_edit_distance, sam_all_plain, sam_all_filtered)
+        samtools_view_command = "%s view -Sb %s > %s/all_mapped.bam" % (SAMTOOLS_BIN, sam_all_plain, output_folder)
         call_or_die(alignment_command)
+        call_or_die(filter_command)
         call_or_die(samtools_view_command)
     else:
         #TODO: rewrite. A system call with pipes can be dangerous.
-        alignment_command = chic_align_bin + " " + chic_align_flags + " " +sequence_all_file + " " + reads_all +" | " + SAMTOOLS_BIN + " view -Sb -  > " + output_folder + "/all_mapped.bam"
+        align_cmd = "%s %s %s %s" % (chic_align_bin, chic_align_flags, sequence_all_file, reads_all)
+        filter_cmd = "%s --max-ed %d" % (filter_by_ed, max_edit_distance)
+        view_cmd = "%s view -Sb - > %s/all_mapped.bam" % (SAMTOOLS_BIN, output_folder)
+        alignment_command = "%s | %s | %s" % (align_cmd, filter_cmd, view_cmd)
         call_or_die(alignment_command)
 
     # FIXME: add memory limit.
