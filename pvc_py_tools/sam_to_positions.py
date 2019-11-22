@@ -117,7 +117,7 @@ def sam_process(input_file_name, output_obj, reference, max_error):
   not_maped= 0;
   cigar_unknown = 0;
   maped = 0;
-  for line in f:
+  for lineno, line in enumerate(f):
     values = line.decode().split('\t');  #### herea
     if (len(values) < 9):
       continue;
@@ -129,7 +129,11 @@ def sam_process(input_file_name, output_obj, reference, max_error):
     start_pos = int(values[3]) - 1;
     #print >> sys.stderr, 'Processing:'
     #print >> sys.stderr, line
-    error = cigar_to_inervals(output_obj, cigar_string, pattern, start_pos, reference, max_error);
+    try:
+      error = cigar_to_inervals(output_obj, cigar_string, pattern, start_pos, reference, max_error);
+    except:
+      print("Error in %s:%d: %s" % (input_file_name, lineno + 1, line), file = sys.stderr)
+      raise
     if (error):
       cigar_unknown = cigar_unknown + 1;
     else:
