@@ -293,7 +293,7 @@ def remove_last_sample_from_vcf(input_vcf, debug_mode):
         for line in output:
             output_file.write(line)
 
-def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_vcf, debug_mode):
+def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_vcf, debug_mode, ploidy):
     curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
     assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
         
@@ -324,7 +324,10 @@ def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adho
     msa = output_prefix + ".msa"
     msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"  ## TODO move to config.py
     tmp_vcf = output_vcf + ".normalized.tmp.vcf"
-    command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id + " > " + tmp_vcf
+    command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id
+    if 1 == ploidy:
+        command_msa2vcf += " --haploid"
+    command_msa2vcf += " > " + tmp_vcf
     call_or_die(command_msa2vcf)
 
     #MSA2VCF has some shortcommings, some post-processing needed:
@@ -348,11 +351,12 @@ def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adho
             print ("output : " + validation_result + "\n")
             exit(33)
 
-def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode):
+def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode, ploidy):
     
     assert(Path(all_vcf_files).is_file())
     assert(Path(adhoc_ref_output_folder).is_dir())
     assert(Path(pgindex_dir).is_dir())
+    assert(ploidy in (1, 2)) # FIXME: add support for other ploidies.
     chr_list = PVC_get_chr_list(pgindex_dir)
     
     split_vcf_by_chrom(all_vcf_files, adhoc_ref_output_folder, chr_list)
@@ -363,45 +367,41 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
         assert(Path(curr_vcf_file).is_file())
         
-        # This not needed anymore, as we are diploid-aware when applying vcf now.
-        #break_multiallelic_vars(curr_vcf_file)  
-        
         curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
         
         adhoc_ref_fasta = curr_adhoc_ref_prefix + ".fasta"
         assert(Path(adhoc_ref_fasta).is_file())
         
         aligned_vars_v1 =  curr_vcf_file + ".v1.applied"
-        assert(not Path(aligned_vars_v1).exists())
         secondary_vcf = curr_vcf_file + ".tmp_secondary_vcf_" + str(randint(1,10000)) 
+        assert(not Path(aligned_vars_v1).exists())
         assert(not Path(secondary_vcf).exists())
         
         apply_vcf(adhoc_ref_fasta, curr_vcf_file, aligned_vars_v1, debug_mode, secondary_vcf, "First")
         assert(Path(aligned_vars_v1).is_file())
         assert(Path(secondary_vcf).is_file())
         
-        # TODO: assert: ploidity==2, otherwise we may want to modify this
-        aligned_vars_v2 =  curr_vcf_file + ".v2.applied"
-        apply_vcf(adhoc_ref_fasta, secondary_vcf, aligned_vars_v2, debug_mode, "NULL", "Second")
-
         output_1_vcf = curr_vcf_file + ".v1.normalized.vcf" ## TODO: better name than v1 and v2 for each "allele" 
-        projected_alignment_to_vcf(aligned_vars_v1, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_1_vcf, debug_mode)
-        
-        output_2_vcf = curr_vcf_file + ".v2.normalized.vcf"
-        projected_alignment_to_vcf(aligned_vars_v2, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_2_vcf, debug_mode)
-        
-        merge_homozygous_variants(output_1_vcf, output_2_vcf)
-        
-        output_tmp = curr_vcf_file + ".tmp.normalized.vcf"
-        command_combine = vcfcombine_bin + " " + output_1_vcf + " " + output_2_vcf + " > " + output_tmp
-        call_or_die(command_combine)
-        #exit(33)
+        projected_alignment_to_vcf(aligned_vars_v1, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_1_vcf, debug_mode, ploidy)
+        output_tmp = output_1_vcf # for command_create_multi below.
+
+        if 2 == ploidy:
+            aligned_vars_v2 =  curr_vcf_file + ".v2.applied"
+            apply_vcf(adhoc_ref_fasta, secondary_vcf, aligned_vars_v2, debug_mode, "NULL", "Second")
+
+            output_2_vcf = curr_vcf_file + ".v2.normalized.vcf"
+            projected_alignment_to_vcf(aligned_vars_v2, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_2_vcf, debug_mode, ploidy)
+            
+            merge_homozygous_variants(output_1_vcf, output_2_vcf)
+            
+            output_tmp = curr_vcf_file + ".tmp.normalized.vcf"
+            command_combine = vcfcombine_bin + " " + output_1_vcf + " " + output_2_vcf + " > " + output_tmp
+            call_or_die(command_combine)
+            #exit(33)
         
         output_vcf = curr_vcf_file + ".normalized.vcf"
         command_create_multi = vcfcreatemulti_bin + " " + output_tmp + " > " + output_vcf
         call_or_die(command_create_multi)
-
-        call_or_die(command_combine)
 
     #TODO: vcfconcat is using only the headers from the first vcf file, hence losing the  ##contig=<ID=X,length=400> for all X that are not in the first file.
     #We do not use these header info anyway and the field is optional so this not urgent.

@@ -74,8 +74,9 @@ def BwaSamtoolsVC(args):
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
-    samtools_pileup_command = "%s mpileup --output-type u --fasta-ref %s %s | %s call --ploidy %s --output-type u --variants-only --multiallelic-caller > %s" % (BCFTOOLS_BIN, reference, working_dir + "/sorted-alns2.bam", BCFTOOLS_BIN, ploidy_file, working_dir + "/var.raw.bcf")
-    call_or_die(samtools_pileup_command)
+    # FIXME Apparentlly ploidy should be specified for bcftools mpileup. However, there does not seem to be an option to do that and according to the manual, --samples-file’s second column is only handled by bcftools call.
+    pileup_command = "%s mpileup --output-type u --fasta-ref %s %s | %s call --ploidy %s --output-type u --variants-only --multiallelic-caller > %s" % (BCFTOOLS_BIN, reference, working_dir + "/sorted-alns2.bam", BCFTOOLS_BIN, ploidy_file, working_dir + "/var.raw.bcf")
+    call_or_die(pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 
     filter_command = BCFTOOLS_BIN + " view " + working_dir + "/var.raw.bcf | " + VCFUTILS_BIN + " varFilter -D100 > " + working_dir + "/var.flt.vcf"
