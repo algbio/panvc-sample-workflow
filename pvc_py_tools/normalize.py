@@ -6,10 +6,6 @@ from Bio import SeqIO
 from random import randint
 
 PANVC_DIR = sys.path[0]
-BIOTOOLS_DIR = "%s/components/normalize_vcf/ext/biotools" % PANVC_DIR
-sys.path.append(BIOTOOLS_DIR)
-import a2m_alignment_to_vcf as aatv
-import combine_vcf
 
 # return 1/0
 def underlyng_seqs_equals(seq_1, seq_2):
@@ -316,62 +312,6 @@ def concat_vcfs(adhoc_ref_output_folder, chr_list):
     call_or_die(concat_command)
 
 
-def normalize_vcf_haploid_snps_only(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode, ploidy):
-
-    def read_file(f):
-        return f.read().replace('\n', '')
-
-    def read_path(path):
-        with open(path, 'r') as f:
-            return read_file(f)
-
-    print("Warning: only haploid SNPs are currently handled.", file = sys.stderr)
-    if 1 != ploidy:
-        print("Warning: normalization not done.", file = sys.stderr)
-        return False
-    
-    alignment_to_vcf_bin = PANVC_DIR + "/components/normalize_vcf/ext/biotools/a2m_alignment_to_vcf.py"
-    
-    # Split by chromosome.
-    chr_list = PVC_get_chr_list(pgindex_dir)
-    split_vcf_by_chrom(all_vcf_files, adhoc_ref_output_folder, chr_list)
-
-    for chr_id in chr_list:
-        print("Normalizing variants in chromosome %s" % chr_id, file = sys.stderr)
-
-        # Get the original multialigned reference.
-        original_ref_aln = "%s/%s/recombinant.n1.gapped" % (pgindex_dir, chr_id)
-        assert(Path(original_ref_aln).is_file())
-        with open(original_ref_aln, 'r') as original_ref_aln_file:
-            original_ref_aln_seq = read_file(original_ref_aln_file)
-
-            # Get the VCF file.
-            curr_vcf_file = "%s/%s/vars.vcf" % (adhoc_ref_output_folder, chr_id)
-            assert(Path(curr_vcf_file).is_file())
-
-            # Get the current ad-hoc reference.
-            curr_adhoc_ref_prefix = "%s/%s/adhoc_reference" % (adhoc_ref_output_folder, chr_id)
-            adhoc_ref_aln = curr_adhoc_ref_prefix + ".aligned_to_ref"
-            assert(Path(adhoc_ref_aln).is_file())
-            adhoc_ref_aln_seq = read_path(adhoc_ref_aln)
-
-            # Generate a variant file from the ad-hoc reference w.r.t. the original reference.
-            adhoc_variants_path = "%s/%s/adhoc_reference_variants.vcf" % (adhoc_ref_output_folder, chr_id)
-            assert(not Path(adhoc_variants_path).exists())
-            with open(adhoc_variants_path, "w") as dst_file:
-                aatv.process_sequences([original_ref_aln_seq, adhoc_ref_aln_seq], ["original", "chr%s" % chr_id], dst_file, "adhoc_ref_chr%s" % chr_id)
-
-            # Combine the variant files, replace the REF column with the reference.
-            # Since only SNPs are allowed, the gapped reference should not actually have gaps.
-            output_vcf = curr_vcf_file + ".normalized.vcf"
-            assert(not Path(output_vcf).exists())
-            print("Combining %s and %s to %s" % (adhoc_variants_path, curr_vcf_file, output_vcf), file = sys.stderr)
-            with open(adhoc_variants_path, "r") as adhoc_vars_file, open(curr_vcf_file, "r") as vars_file, open(output_vcf, "w") as dst_file:
-                combine_vcf.combine_vcf([vars_file, adhoc_vars_file], dst_file, chr_id = "adhoc_ref_chr%s" % chr_id, reference_seq = original_ref_aln_seq)
-    concat_vcfs(adhoc_ref_output_folder, chr_list)
-    return True
-
-    
 def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode, ploidy):
     alignment_to_vcf_bin = PANVC_DIR + "/components/normalize_vcf/combine_msa_vcf" # FIXME: move to correct place
     
