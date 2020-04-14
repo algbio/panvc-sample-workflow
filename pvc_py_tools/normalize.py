@@ -6,7 +6,8 @@ from Bio import SeqIO
 from random import randint
 
 PANVC_DIR = sys.path[0]
-sys.path.append("%s/../components/normalize_vcf/ext/biotools" % PANVC_DIR)
+BIOTOOLS_DIR = "%s/components/normalize_vcf/ext/biotools" % PANVC_DIR
+sys.path.append(BIOTOOLS_DIR)
 import a2m_alignment_to_vcf as aatv
 import combine_vcf
 
@@ -431,54 +432,33 @@ def normalize_vcf_haploid_snps_only(pgindex_dir, all_vcf_files, adhoc_ref_output
 
     
 def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode, ploidy):
-    assert(Path(all_vcf_files).is_file())
-    assert(Path(adhoc_ref_output_folder).is_dir())
-    assert(Path(pgindex_dir).is_dir())
-    assert(ploidy in (1, 2)) # FIXME: add support for other ploidies.
-    chr_list = PVC_get_chr_list(pgindex_dir)
+    alignment_to_vcf_bin = PANVC_DIR + "/components/normalize_vcf/combine_msa_vcf" # FIXME: move to correct place
     
+    # Split by chromosome.
+    chr_list = PVC_get_chr_list(pgindex_dir)
     split_vcf_by_chrom(all_vcf_files, adhoc_ref_output_folder, chr_list)
     
     for chr_id in chr_list:
-        print ("Normalizing vars in chr: " + chr_id)
-        curr_vcf_file = adhoc_ref_output_folder + "/" + chr_id + "/vars.vcf"
+        print("Normalizing variants in chromosome %s" % chr_id, file = sys.stderr)
+
+        # Get the original multialigned reference.
+        original_ref_aln = "%s/%s/recombinant.n1.gapped" % (pgindex_dir, chr_id)
+        assert(Path(original_ref_aln).is_file())
+        
+        # Get the VCF file.
+        curr_vcf_file = "%s/%s/vars.vcf" % (adhoc_ref_output_folder, chr_id)
         assert(Path(curr_vcf_file).is_file())
         
-        curr_adhoc_ref_prefix = adhoc_ref_output_folder + "/" + chr_id + "/adhoc_reference" 
+        # Get the current ad-hoc reference.
+        curr_adhoc_ref_prefix = "%s/%s/adhoc_reference" % (adhoc_ref_output_folder, chr_id)
+        adhoc_ref_aln = curr_adhoc_ref_prefix + ".aligned_to_ref"
+        assert(Path(adhoc_ref_aln).is_file())
         
-        adhoc_ref_fasta = curr_adhoc_ref_prefix + ".fasta"
-        assert(Path(adhoc_ref_fasta).is_file())
-        
-        aligned_vars_v1 =  curr_vcf_file + ".v1.applied"
-        secondary_vcf = curr_vcf_file + ".tmp_secondary_vcf_" + str(randint(1,10000)) 
-        assert(not Path(aligned_vars_v1).exists())
-        assert(not Path(secondary_vcf).exists())
-        
-        apply_vcf(adhoc_ref_fasta, curr_vcf_file, aligned_vars_v1, debug_mode, secondary_vcf, "First")
-        assert(Path(aligned_vars_v1).is_file())
-        assert(Path(secondary_vcf).is_file())
-        
-        output_1_vcf = curr_vcf_file + ".v1.normalized.vcf" ## TODO: better name than v1 and v2 for each "allele" 
-        projected_alignment_to_vcf(aligned_vars_v1, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_1_vcf, debug_mode, ploidy)
-        output_tmp = output_1_vcf # for command_create_multi below.
-
-        if 2 == ploidy:
-            aligned_vars_v2 =  curr_vcf_file + ".v2.applied"
-            apply_vcf(adhoc_ref_fasta, secondary_vcf, aligned_vars_v2, debug_mode, "NULL", "Second")
-
-            output_2_vcf = curr_vcf_file + ".v2.normalized.vcf"
-            projected_alignment_to_vcf(aligned_vars_v2, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_2_vcf, debug_mode, ploidy)
-            
-            merge_homozygous_variants(output_1_vcf, output_2_vcf)
-            
-            output_tmp = curr_vcf_file + ".tmp.normalized.vcf"
-            command_combine = vcfcombine_bin + " " + output_1_vcf + " " + output_2_vcf + " > " + output_tmp
-            call_or_die(command_combine)
-            #exit(33)
-        
+        # Combine and normalize.
         output_vcf = curr_vcf_file + ".normalized.vcf"
-        command_create_multi = vcfcreatemulti_bin + " " + output_tmp + " > " + output_vcf
-        call_or_die(command_create_multi)
-
+        combine_command = "%s --ref='%s' --alt='%s' --variants='%s' --output-chr='%s' --ploidy='%d' > %s" % \
+            (alignment_to_vcf_bin, original_ref_aln, adhoc_ref_aln, curr_vcf_file, chr_id, ploidy, output_vcf)
+        call_or_die(combine_command)
+    
     concat_vcfs(adhoc_ref_output_folder, chr_list)
     return True
