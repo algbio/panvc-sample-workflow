@@ -299,65 +299,6 @@ def remove_last_sample_from_vcf(input_vcf, debug_mode):
         for line in output:
             output_file.write(line)
 
-def projected_alignment_to_vcf(curr_aligned_vars, chr_id, pgindex_dir, curr_adhoc_ref_prefix, output_vcf, debug_mode, ploidy):
-    curr_adhoc_ref_aligned_to_ref = curr_adhoc_ref_prefix + ".aligned_to_ref"
-    assert(Path(curr_adhoc_ref_aligned_to_ref).is_file())
-        
-    a1 = pgindex_dir + "/" + chr_id + "/recombinant.n1.gapped"
-    a2 = curr_adhoc_ref_aligned_to_ref
-    x1 = output_vcf + ".applied_vars.seq1"
-    x2 = output_vcf + ".applied_vars.seq2"
-    #TODO: replace with a native python function. A system call with pipes can be dangerous.
-    command_head = "head -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x1
-    command_tail = "tail -n1 " + curr_aligned_vars + " | tr -d '\n' > " + x2
-    call_or_die(command_head)
-    call_or_die(command_tail)
-
-    if debug_mode:
-        validate_equal_underlying_seqs(a2, x1)
-    output_prefix = output_vcf
-    project_command =  PANVC_DIR + "/components/normalize_vcf/projector/projector " + a1 + " " + a2 + " " + x1 + " " + x2 + " " + output_prefix
-    call_or_die(project_command)
-
-    new_ref = output_prefix + ".newrefgapped"
-    gap_positions_bin = PANVC_DIR + "/components/pan_genome_index_real/store_gap_pos/src/store_gaps"
-    assert(Path(new_ref).is_file())  # created also by projector
-    assert(Path(gap_positions_bin).is_file())
-    gap_pos_prefix = new_ref + ".gaps"
-    command_gaps = gap_positions_bin + " " + new_ref + " " + gap_pos_prefix
-    call_or_die(command_gaps)
-
-    msa = output_prefix + ".msa"
-    msa2vcf= PANVC_DIR + "/components/normalize_vcf/ext/jvarkit/dist/msa2vcf.jar"  ## TODO move to config.py
-    tmp_vcf = output_vcf + ".normalized.tmp.vcf"
-    command_msa2vcf = "java -jar " + msa2vcf + " -c Reference " + msa + " -R " + chr_id
-    if 1 == ploidy:
-        command_msa2vcf += " --haploid"
-    command_msa2vcf += " > " + tmp_vcf
-    call_or_die(command_msa2vcf)
-    shutil.copy(tmp_vcf, tmp_vcf + ".saved")
-
-    #MSA2VCF has some shortcommings, some post-processing needed:
-    remove_last_sample_from_vcf(tmp_vcf, debug_mode)
-
-    #MSA2VCF uses the gapped msa as reference, we want to express the variants using the standard reference coordinates:
-    
-    renormalizer = PANVC_DIR  + "/components/normalize_vcf/renormalizer/renormalizer"  ## TODO: move to config.py
-    renormalizer_command = renormalizer + " " + tmp_vcf + " " + new_ref + ".gaps > " + output_vcf 
-    call_or_die(renormalizer_command)
-    if (debug_mode):
-        print ("Validating vcf")
-        validate_vcf_command = VCFCHECK_BIN + " -f " + pgindex_dir + "/std_ref.fa " + output_vcf 
-        validation_result = call_and_get_result(validate_vcf_command)
-        if (validation_result != ""):
-            #Note: the original version of this code built the fai index, but
-            #apparently vcfcheck builds it whent it is not found.
-            print ("The normalized VCF does not pass the validation. This should not occur.")
-            print ("Validation command and output follows:")
-            print ("command: " + validate_vcf_command)
-            print ("output : " + validation_result + "\n")
-            exit(33)
-
 
 def concat_vcfs(adhoc_ref_output_folder, chr_list):
     #TODO: vcfconcat is using only the headers from the first vcf file, hence losing the  ##contig=<ID=X,length=400> for all X that are not in the first file.
