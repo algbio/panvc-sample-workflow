@@ -51,7 +51,7 @@ def PVC_align(args):
 
     sequence_all_file = pgindex_dir + "/recombinant.all.fa"
 
-    chic_align_flags ="--secondary=LZ --threads=" + str(n_threads) + " --kernel-options=--n-ceil=C," + str(max_edit_distance) + ",0"
+    chic_align_flags ="--secondary-report=NONE --threads=" + str(n_threads) + " --kernel-options=--n-ceil=C," + str(max_edit_distance) + ",0"
     alignment_command = ""
     if debug_mode:
         sam_all_plain = output_folder + "/mapped_reads_all.sam"
