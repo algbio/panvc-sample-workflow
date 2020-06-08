@@ -110,10 +110,6 @@ def BwaGATKVC(args):
     print ("############################################")
     PVC_index_ref(reference)
 
-    bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
-    #TODO(scalability): -a allows whole genome. should it be a parameter or should it be infered from the context
-    call_or_die(bwa_align_command)
-
     bwa_align_command = BWA_BIN + " mem -K 100000000 -v 3 -t 16 -Y " + reference + " " + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned_reads.sam"
     call_or_die(bwa_align_command)
 
