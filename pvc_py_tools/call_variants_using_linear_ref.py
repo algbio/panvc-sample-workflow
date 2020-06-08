@@ -53,14 +53,11 @@ def BwaSamtoolsVC(args):
     assert(Path(BWA_BIN).is_file())
 
     PVC_index_ref(reference)
-    bwa_align_command = BWA_BIN + " mem -t" + str(n_threads) + " " + reference + " "  + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned.sam"
+    bwa_align_comand = f"{BWA_BIN} mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
-    samtools_view_command = SAMTOOLS_BIN + " view -Sb " + working_dir + "/aligned.sam > " + working_dir + "/aligned.bam"
-    call_or_die(samtools_view_command)
-
     markdup_comm = GATK_BIN + " MarkDuplicates" \
-                            + " --INPUT "       + working_dir + "/aligned.bam"\
+                            + " --INPUT "       + working_dir + "/aligned_reads.bam"\
                             + " --OUTPUT "       + working_dir + "/aligned_deduplicated.bam"\
                             + " --METRICS_FILE " + working_dir + "/metrics.txt"\
                             + " --VALIDATION_STRINGENCY SILENT"\
@@ -70,12 +67,13 @@ def BwaSamtoolsVC(args):
     call_or_die(markdup_comm)
     
 
-    samtools_sort_command = "%s sort -@ %d -m %.0f --output-fmt BAM -o %s %s" % (SAMTOOLS_BIN, n_threads, 1024.0 * 1024.0 * args.max_memory_MB / n_threads, working_dir + "/sorted-alns2.bam", working_dir + "/aligned_deduplicated.bam")
+    memory_per_thread = "%.0f" % (1024.0 * 1024.0 * args.max_memory_MB / n_threads)
+    samtools_sort_command = f"{SAMTOOLS_BIN} sort -@ {n_threads} -m {memory_per_thread} --output-fmt BAM -o {working_dir}/sorted-alns2.bam {working_dir}/aligned_deduplicated.bam"
     call_or_die(samtools_sort_command)
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
     # FIXME Apparentlly ploidy should be specified for bcftools mpileup. However, there does not seem to be an option to do that and according to the manual, --samples-file’s second column is only handled by bcftools call.
-    pileup_command = "%s mpileup --output-type u --fasta-ref %s %s | %s call --ploidy %s --output-type u --variants-only --multiallelic-caller > %s" % (BCFTOOLS_BIN, reference, working_dir + "/sorted-alns2.bam", BCFTOOLS_BIN, ploidy_file, working_dir + "/var.raw.bcf")
+    pileup_command = f"{BCFTOOLS_BIN} mpileup --output-type u --fasta-ref {reference} {working_dir}/sorted-alns2.bam | {BCFTOOLS_BIN} call --ploidy {ploidy_file} --output-type u --variants-only --multiallelic-caller > {working_dir}/var.raw.bcf"
     call_or_die(pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 
@@ -110,7 +108,7 @@ def BwaGATKVC(args):
     print ("############################################")
     PVC_index_ref(reference)
 
-    bwa_align_command = BWA_BIN + " mem -K 100000000 -v 3 -t 16 -Y " + reference + " " + reads_file_1 + " " + reads_file_2 + " > " + working_dir + "/aligned_reads.sam"
+    bwa_align_command = f"{BWA_BIN} mem -K 100000000 -v 3 -t {n_threads} -Y {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -@ {n_threads} -b -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
 
     ######
@@ -130,7 +128,7 @@ def BwaGATKVC(args):
             + " --VALIDATION_STRINGENCY SILENT"\
             + " --EXPECTED_ORIENTATIONS FR"\
             + " --ATTRIBUTES_TO_RETAIN X0"\
-            + " --ALIGNED_BAM " + working_dir + "/aligned_reads.sam"\
+            + " --ALIGNED_BAM " + working_dir + "/aligned_reads.bam"\
             + " --UNMAPPED_BAM " + working_dir + "/input_reads_unaligned.ubam"\
             + " --OUTPUT " + working_dir + "/merged_reads.bam"\
             + " --REFERENCE_SEQUENCE " + reference\
