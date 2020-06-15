@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import argparse
+import glob
+import re
 from pvc_tools import *
 from pathlib import Path
 
@@ -49,34 +51,20 @@ def PVC_align(args):
     ## Now this option is gone. The real fix is not to bring it back, but to migrate to snake-make so that we can re-run the pipeline from any intermediate 
     ## stage if some changes were done.
 
-    sequence_all_file = pgindex_dir + "/recombinant.all.fa"
+    align_cmd = f"{chic_align_bin} --secondary-report=NONE --threads={n_threads} --kernel-options=--n-ceil=C,{max_edit_distance},0 --max-ed={max_edit_distance} --split-output-by-reference --output-prefix={output_folder} --samtools-path={SAMTOOLS_BIN} {pgindex_dir}/recombinant.all.fa {reads_all}"
+    call_or_die(align_cmd)
 
-    chic_align_flags ="--secondary-report=NONE --threads=" + str(n_threads) + " --kernel-options=--n-ceil=C," + str(max_edit_distance) + ",0"
-    alignment_command = ""
-    if debug_mode:
-        sam_all_plain = output_folder + "/mapped_reads_all.sam"
-        sam_all_filtered = output_folder + "/mapped_reads_filtered.sam"
-        alignment_command = "%s %s %s %s --output=%s" % (chic_align_bin, chic_align_flags, sequence_all_file, reads_all, sam_all_plain)
-        filter_command = "%s --max-ed %d < %s > %s" % (filter_by_ed, max_edit_distance, sam_all_plain, sam_all_filtered)
-        samtools_view_command = "%s view -Sb %s > %s/all_mapped.bam" % (SAMTOOLS_BIN, sam_all_plain, output_folder)
-        call_or_die(alignment_command)
-        call_or_die(filter_command)
-        call_or_die(samtools_view_command)
-    else:
-        #TODO: rewrite. A system call with pipes can be dangerous.
-        align_cmd = "%s %s %s %s" % (chic_align_bin, chic_align_flags, sequence_all_file, reads_all)
-        filter_cmd = "%s --max-ed %d" % (filter_by_ed, max_edit_distance)
-        view_cmd = "%s view -Sb - > %s/all_mapped.bam" % (SAMTOOLS_BIN, output_folder)
-        alignment_command = "%s | %s | %s" % (align_cmd, filter_cmd, view_cmd)
-        call_or_die(alignment_command)
+    # FIXME: add memory limit to sort.
+    # FIXME: glob is not the best approach. Use PVC_sequence_num_to_name instead?
+    unsorted_bams = glob.glob(f"{output_folder}/all_mapped.REF_*.bam")
+    print("Got unsorted bams:", unsorted_bams)
+    for unsorted_bam in unsorted_bams:
+        rname = unsorted_bam[len(f"{output_folder}/all_mapped.REF_"):]
+        rname = rname[:-(len(".bam"))]
+        sort_command = f"{SAMTOOLS_BIN} sort -@ {n_threads} --output-fmt BAM -o {output_folder}/all_sorted.REF_{rname}.bam {unsorted_bam}"
+        call_or_die(sort_command)
+        os.remove(unsorted_bam)
 
-    # FIXME: add memory limit.
-    sort_command = "%s sort -@ %d --output-fmt BAM -o %s %s" % (SAMTOOLS_BIN, n_threads, output_folder + "/all_sorted.bam", output_folder + "/all_mapped.bam")
-    call_or_die(sort_command)
-
-    split_command = bamtools_bin + " split -reference -in "+output_folder+"/all_sorted.bam"
-    call_or_die(split_command)
-    
     for chr_id in chr_list:
         print ("processing chr: " + chr_id)
         samples_name_file = pgindex_dir + "/" + chr_id + "/names.plain"
