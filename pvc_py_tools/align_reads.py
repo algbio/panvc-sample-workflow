@@ -66,12 +66,10 @@ def PVC_align(args):
         os.remove(unsorted_bam)
 
     for chr_id in chr_list:
-        print ("processing chr: " + chr_id)
         samples_name_file = pgindex_dir + "/" + chr_id + "/names.plain"
         Path(output_folder + "/" + chr_id).mkdir()
 
         for curr_ref in range(1,n_refs+1):
-            print ("Ref id: " + str(curr_ref))
             curr_fasta_name = PVC_sequence_num_to_name(samples_name_file, len(chr_list), ploidy, chr_id, curr_ref)
             bam_file = output_folder + "/all_sorted.REF_" + curr_fasta_name  + ".bam"
             sam_file = output_folder + "/" + chr_id  + "/mapped_reads_to" + str(curr_ref) + ".sam.gz"
