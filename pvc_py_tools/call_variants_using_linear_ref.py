@@ -5,6 +5,7 @@ import argparse
 import shutil
 from pathlib import Path
 import os
+import tempfile
 
 def VC_main():
     parser = argparse.ArgumentParser(description='Align reads to a PanVC-indexed pan-genome.')
@@ -39,6 +40,7 @@ def BwaSamtoolsVC(args):
     output_file = args.output_file
     ploidy = args.ploidy
     ploidy_file = args.ploidy_file
+    tempdir = tempfile.gettempdir()
     
     debug_mode = args.debug
     paired_flag = False if reads_file_2 == "" else True
@@ -56,14 +58,18 @@ def BwaSamtoolsVC(args):
     bwa_align_comand = f"{BWA_BIN} mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
-    markdup_comm = GATK_BIN + " MarkDuplicates" \
-                            + " --INPUT "       + working_dir + "/aligned_reads.bam"\
-                            + " --OUTPUT "       + working_dir + "/aligned_deduplicated.bam"\
-                            + " --METRICS_FILE " + working_dir + "/metrics.txt"\
-                            + " --VALIDATION_STRINGENCY SILENT"\
-                            + " --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500"\
-                            + " --ASSUME_SORT_ORDER queryname"\
-                            + " --CREATE_MD5_FILE true"
+    markdup_comm = GATK_BIN + f" --java-options -Djava.io.tmpdir={tempdir}" \
+                            + f" MarkDuplicates" \
+                            + f" --INPUT {working_dir}/aligned_reads.bam"\
+                            + f" --OUTPUT {working_dir}/aligned_deduplicated.bam"\
+                            + f" --TMP_DIR={tempdir}"\
+                            + f" --METRICS_FILE {working_dir}/metrics.txt"\
+                            + f" --VALIDATION_STRINGENCY SILENT"\
+                            + f" --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500"\
+                            + f" --ASSUME_SORT_ORDER queryname"\
+                            + f" --CREATE_MD5_FILE true" \
+                            + f" --USE_JDK_DEFLATER true" \
+                            + f" --USE_JDK_INFLATER true"
     call_or_die(markdup_comm)
     
 
@@ -91,6 +97,7 @@ def BwaGATKVC(args):
     n_threads = args.n_threads
     output_file = args.output_file
     ploidy = args.ploidy
+    tempdir = tempfile.gettempdir()
     
     debug_mode = args.debug
     paired_flag = False if reads_file_2 == "" else True
@@ -110,40 +117,46 @@ def BwaGATKVC(args):
 
     bwa_align_command = f"{BWA_BIN} mem -K 100000000 -v 3 -t {n_threads} -Y {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -@ {n_threads} -b -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
+    
+    # Running GATK can cause a “pure virtual method called” error related to a native library.
+    # According to this thread, passing --USE_JDK_DEFLATER true --USE_JDK_INFLATER true can help: https://gatkforums.broadinstitute.org/gatk/discussion/12438/gatk-haplotypecaller-crashes-randomly
 
     ######
     ## The "uBAM" issue of GATK
     ## -> convert original fastq reads to uBAM
 
-    fq2sam_command =  GATK_BIN + " --java-options -Xmx" + max_memory_MB + "M  FastqToSam" 
-    fq2sam_command = fq2sam_command + " -F1 " + reads_file_1
+    fq2sam_command = f"{GATK_BIN} --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir}' FastqToSam -F1 {reads_file_1}"
     if (paired_flag):
-        fq2sam_command = fq2sam_command + " -F2 " + reads_file_2
-    fq2sam_command = fq2sam_command + " --SAMPLE_NAME sample1 -O " + working_dir + "/input_reads_unaligned.ubam"
+        fq2sam_command += f" -F2 {reads_file_2}"
+    fq2sam_command += f" --SAMPLE_NAME sample1 -O {working_dir}/input_reads_unaligned.ubam --TMP_DIR={tempdir} --USE_JDK_DEFLATER true --USE_JDK_INFLATER true"
     call_or_die(fq2sam_command)
 
     ## merge above uBAM file with the output of BwaMem
     merge_command = GATK_BIN \
-            + " MergeBamAlignment"\
-            + " --VALIDATION_STRINGENCY SILENT"\
-            + " --EXPECTED_ORIENTATIONS FR"\
-            + " --ATTRIBUTES_TO_RETAIN X0"\
-            + " --ALIGNED_BAM " + working_dir + "/aligned_reads.bam"\
-            + " --UNMAPPED_BAM " + working_dir + "/input_reads_unaligned.ubam"\
-            + " --OUTPUT " + working_dir + "/merged_reads.bam"\
-            + " --REFERENCE_SEQUENCE " + reference\
-            + " --PAIRED_RUN true"\
-            + " --SORT_ORDER unsorted"\
-            + " --IS_BISULFITE_SEQUENCE false"\
-            + " --ALIGNED_READS_ONLY false"\
-            + " --CLIP_ADAPTERS false"\
-            + " --MAX_RECORDS_IN_RAM 2000000"\
-            + " --ADD_MATE_CIGAR true"\
-            + " --MAX_INSERTIONS_OR_DELETIONS -1"\
-            + " --PRIMARY_ALIGNMENT_STRATEGY MostDistant"\
-            + " --UNMAPPED_READ_STRATEGY COPY_TO_TAG"\
-            + " --ALIGNER_PROPER_PAIR_FLAGS true"\
-            + " --UNMAP_CONTAMINANT_READS true"
+            + f" --java-options -Djava.io.tmpdir={tempdir}"\
+            + f" MergeBamAlignment"\
+            + f" --TMP_DIR={tempdir}"\
+            + f" --VALIDATION_STRINGENCY SILENT"\
+            + f" --EXPECTED_ORIENTATIONS FR"\
+            + f" --ATTRIBUTES_TO_RETAIN X0"\
+            + f" --ALIGNED_BAM {working_dir}/aligned_reads.bam"\
+            + f" --UNMAPPED_BAM {working_dir}/input_reads_unaligned.ubam"\
+            + f" --OUTPUT {working_dir}/merged_reads.bam"\
+            + f" --REFERENCE_SEQUENCE {reference}"\
+            + f" --PAIRED_RUN true"\
+            + f" --SORT_ORDER unsorted"\
+            + f" --IS_BISULFITE_SEQUENCE false"\
+            + f" --ALIGNED_READS_ONLY false"\
+            + f" --CLIP_ADAPTERS false"\
+            + f" --MAX_RECORDS_IN_RAM 2000000"\
+            + f" --ADD_MATE_CIGAR true"\
+            + f" --MAX_INSERTIONS_OR_DELETIONS -1"\
+            + f" --PRIMARY_ALIGNMENT_STRATEGY MostDistant"\
+            + f" --UNMAPPED_READ_STRATEGY COPY_TO_TAG"\
+            + f" --ALIGNER_PROPER_PAIR_FLAGS true"\
+            + f" --UNMAP_CONTAMINANT_READS true"\
+            + f" --USE_JDK_DEFLATER true" \
+            + f" --USE_JDK_INFLATER true"
 
     #Probably too much, relying on defaults
     #merge_comm+=' --java-options "-Dsamjdk.compression_level=${compression_level}"'
@@ -157,32 +170,43 @@ def BwaGATKVC(args):
     print (" Mark duplicates:")
     print ("############################################")
     mark_duplicates_command = GATK_BIN\
-            + " MarkDuplicates"\
-            + " --INPUT " + working_dir + "/merged_reads.bam"\
-            + " --OUTPUT " + working_dir + "/aligned_deduplicated.bam "\
-            + " --METRICS_FILE " + working_dir + "/metrics.txt "\
-            + " --VALIDATION_STRINGENCY SILENT "\
-            + " --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500 "\
-            + " --ASSUME_SORT_ORDER queryname"\
-            + " --CREATE_MD5_FILE true"
+            + f" --java-options -Djava.io.tmpdir={tempdir}"\
+            + f" MarkDuplicates"\
+            + f" --TMP_DIR={tempdir}"\
+            + f" --INPUT {working_dir}/merged_reads.bam"\
+            + f" --OUTPUT {working_dir}/aligned_deduplicated.bam "\
+            + f" --METRICS_FILE {working_dir}/metrics.txt "\
+            + f" --VALIDATION_STRINGENCY SILENT "\
+            + f" --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500 "\
+            + f" --ASSUME_SORT_ORDER queryname"\
+            + f" --CREATE_MD5_FILE true" \
+            + f" --USE_JDK_DEFLATER true" \
+            + f" --USE_JDK_INFLATER true"
     call_or_die(mark_duplicates_command)
 
     sortfix_command = GATK_BIN\
-            + " --java-options  -Xms4000m SortSam"\
-            + " --INPUT " + working_dir + "/aligned_deduplicated.bam"\
-            + " --OUTPUT /dev/stdout"\
-            + " --SORT_ORDER coordinate"\
-            + " --CREATE_INDEX false"\
-            + " --CREATE_MD5_FILE false"\
-            + " | "\
+            + f" --java-options '-Xms4000m -Djava.io.tmpdir={tempdir}'"\
+            + f" SortSam"\
+            + f" --TMP_DIR={tempdir}"\
+            + f" --INPUT {working_dir}/aligned_deduplicated.bam"\
+            + f" --OUTPUT /dev/stdout"\
+            + f" --SORT_ORDER coordinate"\
+            + f" --CREATE_INDEX false"\
+            + f" --CREATE_MD5_FILE false"\
+            + f" --USE_JDK_DEFLATER true" \
+            + f" --USE_JDK_INFLATER true" \
+            + f" | "\
             + GATK_BIN\
-            + " --java-options -Xms500m"\
-            + " SetNmAndUqTags "\
-            + " --INPUT /dev/stdin "\
-            + " --OUTPUT " + working_dir + "/sortedfixed.bam "\
-            + " --CREATE_INDEX true "\
-            + " --CREATE_MD5_FILE true "\
-            + " --REFERENCE_SEQUENCE " + reference
+            + f" --java-options '-Xms500m -Djava.io.tmpdir={tempdir}'"\
+            + f" SetNmAndUqTags "\
+            + f" --TMP_DIR={tempdir}"\
+            + f" --INPUT /dev/stdin "\
+            + f" --OUTPUT {working_dir}/sortedfixed.bam "\
+            + f" --CREATE_INDEX true "\
+            + f" --CREATE_MD5_FILE true "\
+            + f" --REFERENCE_SEQUENCE {reference}" \
+            + f" --USE_JDK_DEFLATER true" \
+            + f" --USE_JDK_INFLATER true"
     call_or_die(sortfix_command)
     
     print ("############################################")
@@ -196,13 +220,21 @@ def BwaGATKVC(args):
     print ("############################################")
     print (" Call variants:")
     print ("############################################")
-    java_opt = ""
-    vc_command = GATK_BIN + " --java-options -Xmx" + max_memory_MB + "M " + java_opt + " HaplotypeCaller -ploidy " + str(ploidy) + " -R " + reference + " -I " + working_dir + "/sortedfixed.bam -O " + working_dir + "/raw_variants.vcf"
+    vc_command = GATK_BIN \
+        + f" --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir}'" \
+        + f" HaplotypeCaller" \
+        + f" -ploidy {ploidy}" \
+        + f" -R {reference}" \
+        + f" -I {working_dir}/sortedfixed.bam" \
+        + f" -O {working_dir}/raw_variants.vcf" \
+        + f" -pairHMM LOGLESS_CACHING" \
+        + f" --use-jdk-deflater" \
+        + f" --use-jdk-inflater"
     call_or_die(vc_command)
     ## -L ${interval_list} \ 
     ## -contamination ${default=0 contamination} ${true="-ERC GVCF" false="" make_gvcf}              
     
-    shutil.copy(working_dir + "/raw_variants.vcf", output_file)
+    shutil.copy(f"{working_dir}/raw_variants.vcf", output_file)
     
     #TODO: replace with a native python function. A system call with pipes can be dangerous.
     if (paired_flag):
