@@ -66,16 +66,10 @@ def write_summary(working_dir, pgindex_dir, input_reads_are_paired, reads_1, rea
     
     #TODO: verify the following is the file I want. 
     #E.g. we may want to  deduplicate, and see if it will make any difference?
-    BAMFILE_to_pg = working_dir + "/sam_files/all_sorted.bam"
     ## Assert file exists
-    assert(Path(BAMFILE_to_pg).is_file())
     assert(Path(BAMFILE_to_adhoc).is_file())
     
     N_INPUT_READS = get_NREADS(reads_1, reads_2, input_reads_are_paired)
-
-    ## Even if the reads were paired-end, we did treat them (and renamed) as if they were
-    ## singl end:
-    N_READS_TO_PG = get_NMAPS_FROM_SINGLE_END_READS(BAMFILE_to_pg)
     
     # The ext. vc. tool however, respected the original reads:
     if input_reads_are_paired :
@@ -87,10 +81,6 @@ def write_summary(working_dir, pgindex_dir, input_reads_are_paired, reads_1, rea
     summary_filename = working_dir + "/summary.txt"
     summary_file = open(summary_filename, "w")
     summary_file.write("INPUT READS : " + str(N_INPUT_READS) + "\n")
-    summary_file.write("\n")
-    summary_file.write("BAM file with reads aligned to pan genome : " + BAMFILE_to_pg + "\n")
-    summary_file.write("Number of reads aligned to pan genome     : " + str(N_READS_TO_PG) + "\n") 
-    summary_file.write("Percentage of reads aligned to pan genome : " + str(100*float(N_READS_TO_PG)/float(N_INPUT_READS)) + "\n") 
     summary_file.write("\n")
     summary_file.write("BAM file with reads aligned to ad-hoc ref : " + BAMFILE_to_adhoc + "\n")
     summary_file.write("Number of reads aligned to ad-hoc ref     : " + str(N_READS_TO_ADHOC) + "\n") 
