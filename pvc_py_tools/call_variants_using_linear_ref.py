@@ -58,7 +58,7 @@ def BwaSamtoolsVC(args):
     bwa_align_comand = f"{BWA_BIN} mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
-    markdup_comm = GATK_BIN + f" --java-options -Djava.io.tmpdir={tempdir}" \
+    markdup_comm = GATK_BIN + f" --java-options '-Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'" \
                             + f" MarkDuplicates" \
                             + f" --INPUT {working_dir}/aligned_reads.bam"\
                             + f" --OUTPUT {working_dir}/aligned_deduplicated.bam"\
@@ -115,7 +115,7 @@ def BwaGATKVC(args):
     print ("############################################")
     PVC_index_ref(reference)
 
-    bwa_align_command = f"{BWA_BIN} mem -K 100000000 -v 3 -t {n_threads} -Y {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -@ {n_threads} -b -o {working_dir}/aligned_reads.bam"
+    bwa_align_command = f"{BWA_BIN} mem -K 100000000 -v 3 -t {n_threads} -Y {reference} {reads_file_1} {reads_file_2} | {GATK_BIN} --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true' SortSam --TMP_DIR={tempdir} --USE_JDK_DEFLATER true --USE_JDK_INFLATER true --SORT_ORDER queryname --INPUT /dev/stdin --OUTPUT {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
     # Running GATK can cause a “pure virtual method called” error related to a native library.
@@ -124,8 +124,8 @@ def BwaGATKVC(args):
     ######
     ## The "uBAM" issue of GATK
     ## -> convert original fastq reads to uBAM
-
-    fq2sam_command = f"{GATK_BIN} --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir}' FastqToSam -F1 {reads_file_1}"
+    
+    fq2sam_command = f"{GATK_BIN} --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true' FastqToSam -F1 {reads_file_1}"
     if (paired_flag):
         fq2sam_command += f" -F2 {reads_file_2}"
     fq2sam_command += f" --SAMPLE_NAME sample1 -O {working_dir}/input_reads_unaligned.ubam --TMP_DIR={tempdir} --USE_JDK_DEFLATER true --USE_JDK_INFLATER true"
@@ -133,7 +133,7 @@ def BwaGATKVC(args):
 
     ## merge above uBAM file with the output of BwaMem
     merge_command = GATK_BIN \
-            + f" --java-options -Djava.io.tmpdir={tempdir}"\
+            + f" --java-options '-Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"\
             + f" MergeBamAlignment"\
             + f" --TMP_DIR={tempdir}"\
             + f" --VALIDATION_STRINGENCY SILENT"\
@@ -170,7 +170,7 @@ def BwaGATKVC(args):
     print (" Mark duplicates:")
     print ("############################################")
     mark_duplicates_command = GATK_BIN\
-            + f" --java-options -Djava.io.tmpdir={tempdir}"\
+            + f" --java-options '-Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"\
             + f" MarkDuplicates"\
             + f" --TMP_DIR={tempdir}"\
             + f" --INPUT {working_dir}/merged_reads.bam"\
@@ -184,30 +184,31 @@ def BwaGATKVC(args):
             + f" --USE_JDK_INFLATER true"
     call_or_die(mark_duplicates_command)
 
-    sortfix_command = GATK_BIN\
-            + f" --java-options '-Xms4000m -Djava.io.tmpdir={tempdir}'"\
+    sortfix_command = GATK_BIN \
+            + f" --java-options '-Xms4000m -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"\
             + f" SortSam"\
             + f" --TMP_DIR={tempdir}"\
             + f" --INPUT {working_dir}/aligned_deduplicated.bam"\
-            + f" --OUTPUT /dev/stdout"\
+            + f" --OUTPUT {working_dir}/aligned_deduplicated_sorted.bam"\
             + f" --SORT_ORDER coordinate"\
             + f" --CREATE_INDEX false"\
             + f" --CREATE_MD5_FILE false"\
             + f" --USE_JDK_DEFLATER true" \
-            + f" --USE_JDK_INFLATER true" \
-            + f" | "\
-            + GATK_BIN\
-            + f" --java-options '-Xms500m -Djava.io.tmpdir={tempdir}'"\
+            + f" --USE_JDK_INFLATER true"
+    call_or_die(sortfix_command)
+
+    sortfix_command_2 = GATK_BIN \
+            + f" --java-options '-Xms500m -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"\
             + f" SetNmAndUqTags "\
             + f" --TMP_DIR={tempdir}"\
-            + f" --INPUT /dev/stdin "\
+            + f" --INPUT {working_dir}/aligned_deduplicated_sorted.bam "\
             + f" --OUTPUT {working_dir}/sortedfixed.bam "\
             + f" --CREATE_INDEX true "\
             + f" --CREATE_MD5_FILE true "\
             + f" --REFERENCE_SEQUENCE {reference}" \
             + f" --USE_JDK_DEFLATER true" \
             + f" --USE_JDK_INFLATER true"
-    call_or_die(sortfix_command)
+    call_or_die(sortfix_command_2)
     
     print ("############################################")
     print (" Base recalibration:")
@@ -221,7 +222,7 @@ def BwaGATKVC(args):
     print (" Call variants:")
     print ("############################################")
     vc_command = GATK_BIN \
-        + f" --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir}'" \
+        + f" --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'" \
         + f" HaplotypeCaller" \
         + f" -ploidy {ploidy}" \
         + f" -R {reference}" \
