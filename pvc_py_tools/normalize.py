@@ -4,6 +4,7 @@ from pvc_tools import *
 from pathlib import Path
 from Bio import SeqIO
 from random import randint
+from datetime import datetime
 
 PANVC_DIR = sys.path[0]
 
@@ -313,6 +314,9 @@ def concat_vcfs(adhoc_ref_output_folder, chr_list):
 
 
 def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mode, ploidy):
+    start = datetime.now()
+    print(f"{start} Normalizing VCF")
+
     alignment_to_vcf_bin = PANVC_DIR + "/components/normalize_vcf/combine_msa_vcf"
     
     # Split by chromosome.
@@ -342,4 +346,8 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
         call_or_die(combine_command)
     
     concat_vcfs(adhoc_ref_output_folder, chr_list)
+
+    end = datetime.now()
+    print(f"{end} Time taken (normalize_vcf): {end - start}")
+
     return True

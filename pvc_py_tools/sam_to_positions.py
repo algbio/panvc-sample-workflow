@@ -5,6 +5,7 @@ import re
 import gzip
 import os 
 from Bio import SeqIO
+from datetime import datetime
 
 ### Assumptuions:
 ### The sam record contains the pattern, we are not covered for the * case, so it will trigger an
@@ -161,6 +162,8 @@ def main():
     SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N_REFS, LOG_FILE_NAME)
 
 def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N_REFS, LOG_FILE_NAME):
+    start = datetime.now()
+    print(f"{start} SamToPos")
     log_file = open(LOG_FILE_NAME, 'w')
     if (SENSIBILITY == 'NONE'):
       #max_error = True;
@@ -206,3 +209,5 @@ def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N
         log_file.write('[sam_to_positions]: *************************\n')
         i = i + 1
     log_file.write('NEW SAM TO POS DONE\n')
+    end = datetime.now()
+    print(f"{end} Time taken: {end - start}")

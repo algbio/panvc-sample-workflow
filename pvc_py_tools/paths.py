@@ -3,6 +3,7 @@ import sys
 import shutil
 sys.path.append('/home/local/dvalenzu/Repos/Code/PanVC/pvc_py_tools')
 from pvc_tools import *
+from datetime import datetime
 
 
 #def paths_main():
@@ -40,6 +41,9 @@ def process_seq(seq,  POS_DIR, pgindex_dir, chr_id):
     validate_sorted_file(curr_tmp_prefix + ".ends")
 
 def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
+    start = datetime.now()
+    print(f"{start} Paths")
+
     assert(Path(HP_BIN).is_file())
     assert(Path(MATRIX_PRINT_BIN).is_file())
 
@@ -116,7 +120,5 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
         if (not debug):
             cleanup_command = "rm " + curr_pos_dir + "/tmp_light_heaviest_path.*"
             call_or_die(cleanup_command)
-
-if __name__ == "__main__":
-    paths_main()
-
+    end = datetime.now()
+    print(f"{end} Time taken (paths): {end - start}")
