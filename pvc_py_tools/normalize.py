@@ -317,7 +317,7 @@ def normalize_vcf(pgindex_dir, all_vcf_files, adhoc_ref_output_folder, debug_mod
     start = datetime.now()
     print(f"{start} Normalizing VCF")
 
-    alignment_to_vcf_bin = PANVC_DIR + "/components/normalize_vcf/combine_msa_vcf"
+    alignment_to_vcf_bin = PANVC_DIR + "/components/pan_genome_index_real/ext/combine_msa_vcf"
     
     # Split by chromosome.
     chr_list = PVC_get_chr_list(pgindex_dir)
