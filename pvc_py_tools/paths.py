@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import sys
 import shutil
-sys.path.append('/home/local/dvalenzu/Repos/Code/PanVC/pvc_py_tools')
 from pvc_tools import *
 from datetime import datetime
 
