@@ -82,7 +82,7 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
                 myfile.write(curr_tmp_prefix + ".sums\n")
         matrix_pgm_output = LOG_DIR + "/scores_matrix.pgm"
         print_matrix_command = " ".join([MATRIX_PRINT_BIN, sum_files_list, str(n_refs), str(msa_len), matrix_pgm_output, ">", hp_log])
-        call_or_die(print_matrix_command)
+        #call_or_die(print_matrix_command)
 
         gaps_dir  = pgindex_dir + "/" + chr_id
         all_fasta_name = pgindex_dir + "/recombinant.all.fa"
