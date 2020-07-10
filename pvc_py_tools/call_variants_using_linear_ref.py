@@ -77,6 +77,9 @@ def BwaSamtoolsVC(args):
     samtools_sort_command = f"{SAMTOOLS_BIN} sort -@ {n_threads} -m {memory_per_thread} --output-fmt BAM -o {working_dir}/sorted-alns2.bam {working_dir}/aligned_deduplicated.bam"
     call_or_die(samtools_sort_command)
 
+    if args.skip_variant_calling:
+        return
+
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
     # FIXME Apparentlly ploidy should be specified for bcftools mpileup. However, there does not seem to be an option to do that and according to the manual, --samples-file’s second column is only handled by bcftools call.
     pileup_command = f"{BCFTOOLS_BIN} mpileup --output-type u --fasta-ref {reference} {working_dir}/sorted-alns2.bam | {BCFTOOLS_BIN} call --ploidy {ploidy_file} --output-type u --variants-only --multiallelic-caller > {working_dir}/var.raw.bcf"
@@ -97,6 +100,7 @@ def BwaGATKVC(args):
     n_threads = args.n_threads
     output_file = args.output_file
     ploidy = args.ploidy
+    skip_variant_calling = args.skip_variant_calling
     tempdir = tempfile.gettempdir()
     
     debug_mode = args.debug
@@ -209,6 +213,9 @@ def BwaGATKVC(args):
             + f" --USE_JDK_DEFLATER true" \
             + f" --USE_JDK_INFLATER true"
     call_or_die(sortfix_command_2)
+
+    if args.skip_variant_calling:
+        return
     
     print ("############################################")
     print (" Base recalibration:")
