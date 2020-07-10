@@ -69,7 +69,7 @@ def PVC_save_var(var_value, var_name, target_dir):
 
 def PVC_load_var(var_name, target_dir):
     file_name = target_dir + "/" + var_name + ".txt" 
-    assert(os.path.isfile(file_name))
+    assert os.path.isfile(file_name), f"Expected {file_name} to be a file"
     with open(file_name, 'r') as myfile:
         ans = myfile.read()
     return int(ans)

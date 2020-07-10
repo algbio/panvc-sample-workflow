@@ -55,7 +55,7 @@ def BwaSamtoolsVC(args):
     assert(Path(BWA_BIN).is_file())
 
     PVC_index_ref(reference)
-    bwa_align_comand = f"{BWA_BIN} mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
+    bwa_align_command = f"{BWA_BIN} mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
     markdup_comm = GATK_BIN + f" --java-options '-Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'" \
