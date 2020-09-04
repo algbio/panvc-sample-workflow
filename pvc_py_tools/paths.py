@@ -54,7 +54,7 @@ def paths(pgindex_dir, POS_DIR, OUTPUT_DIR, LOG_DIR, debug):
     assert(not Path(output_gapped_all).exists())
     assert(not Path(output_plain_all).exists())
     
-    n_refs = PVC_load_var("n_refs", pgindex_dir)
+    n_refs = PVC_load_var("n_refs", f"{pgindex_dir}/1") # FIXME: allow varying number of references per chromosome.
     chr_list = PVC_get_chr_list(pgindex_dir)
     n_chroms = len(chr_list)
     first_chr = chr_list[0]

@@ -37,7 +37,7 @@ def PVC_align(args):
     if (paired_flag):
         reads_all = PVC_merge_reads(reads_1, reads_2, output_folder)
 
-    n_refs = PVC_load_var("n_refs", pgindex_dir)
+    n_refs = PVC_load_var("n_refs", f"{pgindex_dir}/1") # FIXME: Allow varying number of references per chromosome.
     max_read_len = PVC_load_var("max_read_len", pgindex_dir)
     read_len = PVC_read_len_from_reads(reads_all)
     assert(read_len <= max_read_len)
