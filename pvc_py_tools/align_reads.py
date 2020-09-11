@@ -33,17 +33,23 @@ def PVC_align(args):
 
     ensure_dir(output_folder)
 
-    reads_all = reads_1
-    if (paired_flag):
-        reads_all = PVC_merge_reads(reads_1, reads_2, output_folder)
-
     n_refs = PVC_load_var("n_refs", f"{pgindex_dir}/1") # FIXME: Allow varying number of references per chromosome.
     max_read_len = PVC_load_var("max_read_len", pgindex_dir)
+
+    chr_list = PVC_get_chr_list(pgindex_dir)
+    
+    run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, max_read_len, max_edit_distance, n_threads, output_folder)
+
+
+def run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, max_read_len, max_edit_distance, n_threads, output_folder):
+    reads_all = reads_1
+    if (reads_2 is not None):
+        reads_all = PVC_merge_reads(reads_1, reads_2, output_folder)
+
     read_len = PVC_read_len_from_reads(reads_all)
     assert(read_len <= max_read_len)
     
     PVC_save_var(read_len, "read_len", output_folder)
-    chr_list = PVC_get_chr_list(pgindex_dir)
 
     print ("Reference contains : " + str(n_refs) + " references")
     print ("Read len           : " + str(read_len))
@@ -51,7 +57,7 @@ def PVC_align(args):
     ## Now this option is gone. The real fix is not to bring it back, but to migrate to snake-make so that we can re-run the pipeline from any intermediate 
     ## stage if some changes were done.
 
-    align_cmd = f"{chic_align_bin} --secondary-report=NONE --threads={n_threads} --kernel-options=--n-ceil=C,{max_edit_distance},0 --max-ed={max_edit_distance} --split-output-by-reference --output-prefix={output_folder} --samtools-path={SAMTOOLS_BIN} {pgindex_dir}/recombinant.all.fa {reads_all}"
+    align_cmd = f"{chic_align_bin} --secondary-report=NONE --threads={n_threads} --kernel-options=--n-ceil=C,{max_edit_distance},0 --max-ed={max_edit_distance} --split-output-by-reference --output-prefix={output_folder} --samtools-path={SAMTOOLS_BIN} --verbose=3 {pgindex_dir}/recombinant.all.fa {reads_all}"
     call_or_die(align_cmd)
 
     # FIXME: add memory limit to sort.

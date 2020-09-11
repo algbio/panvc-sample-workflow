@@ -21,7 +21,7 @@ op_finder = re.compile('\d\d*\D')
 
 
 # return 1 / 0 depending on if the string was successfully understood or no
-def cigar_to_inervals(output, cigar_string, pattern, start_pos, reference, max_error):
+def cigar_to_intervals(output, cigar_string, pattern, start_pos, reference, max_error):
   
   #print >> sys.stderr, 'Reference: ' + str(reference)
   #print >> sys.stderr, 'Reference length: ' + str(len(reference))
@@ -131,7 +131,7 @@ def sam_process(input_file_name, output_obj, reference, max_error):
     #print >> sys.stderr, 'Processing:'
     #print >> sys.stderr, line
     try:
-      error = cigar_to_inervals(output_obj, cigar_string, pattern, start_pos, reference, max_error);
+      error = cigar_to_intervals(output_obj, cigar_string, pattern, start_pos, reference, max_error);
     except:
       print("Error in %s:%d: %s" % (input_file_name, lineno + 1, line), file = sys.stderr)
       raise
@@ -159,9 +159,13 @@ def main():
     N_REFS=sys.argv[5];
     LOG_FILE_NAME=sys.argv[6];
 
-    SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N_REFS, LOG_FILE_NAME)
+    with open(CHR_LIST_FILE_NAME) as f:
+        chr_list = f.readlines()
+    chr_list = [x.strip() for x in chr_list] 
 
-def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N_REFS, LOG_FILE_NAME):
+    SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, chr_list, SENSIBILITY, N_REFS, LOG_FILE_NAME)
+
+def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, chr_list, SENSIBILITY, N_REFS, LOG_FILE_NAME):
     start = datetime.now()
     print(f"{start} SamToPos")
     log_file = open(LOG_FILE_NAME, 'w')
@@ -176,13 +180,10 @@ def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, CHR_LIST_FILE_NAME, SENSIBILITY, N
     else:
       #max_error = False;
       max_error = int(SENSIBILITY);
-      log_file.write('[sam_to_positions]: ****** Max size of mismatch/indels is:'+ SENSIBILITY +'*******\n')
+      log_file.write(f"[sam_to_positions]: ****** Max size of mismatch/indels is: {SENSIBILITY} *******\n")
 
     fasta_sequences = SeqIO.parse(open(REFERENCE_FILE_NAME),'fasta')
 
-    with open(CHR_LIST_FILE_NAME) as f:
-        chr_list = f.readlines()
-    chr_list = [x.strip() for x in chr_list] 
     n_chrs=len(chr_list)
 
     i = 0
