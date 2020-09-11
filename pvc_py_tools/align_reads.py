@@ -57,7 +57,7 @@ def run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, m
     ## Now this option is gone. The real fix is not to bring it back, but to migrate to snake-make so that we can re-run the pipeline from any intermediate 
     ## stage if some changes were done.
 
-    align_cmd = f"{chic_align_bin} --secondary-report=NONE --threads={n_threads} --kernel-options=--n-ceil=C,{max_edit_distance},0 --max-ed={max_edit_distance} --split-output-by-reference --output-prefix={output_folder} --samtools-path={SAMTOOLS_BIN} --verbose=3 {pgindex_dir}/recombinant.all.fa {reads_all}"
+    align_cmd = f"{CHIC_ALIGN_BIN} --secondary-report=NONE --threads={n_threads} --kernel-options=--n-ceil=C,{max_edit_distance},0 --max-ed={max_edit_distance} --split-output-by-reference --output-prefix={output_folder} --samtools-path={SAMTOOLS_BIN} --verbose=3 {pgindex_dir}/recombinant.all.fa {reads_all}"
     call_or_die(align_cmd)
 
     # FIXME: add memory limit to sort.

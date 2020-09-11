@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append(f"{snakemake.scriptdir}/../../pvc_py_tools")
 from align_reads import run_panvc_aligner
 
