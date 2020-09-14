@@ -38,13 +38,14 @@ def PVC_align(args):
 
     chr_list = PVC_get_chr_list(pgindex_dir)
     
-    run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, max_read_len, max_edit_distance, n_threads, output_folder)
-
-
-def run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, max_read_len, max_edit_distance, n_threads, output_folder):
     reads_all = reads_1
     if (reads_2 is not None):
         reads_all = PVC_merge_reads(reads_1, reads_2, output_folder)
+
+    run_panvc_aligner(reads_all, pgindex_dir, chr_list, ploidy, n_refs, max_read_len, max_edit_distance, n_threads, output_folder)
+
+
+def run_panvc_aligner(reads_all, pgindex_dir, chr_list, ploidy, n_refs, max_read_len, max_edit_distance, n_threads, output_folder):
 
     read_len = PVC_read_len_from_reads(reads_all)
     assert(read_len <= max_read_len)
@@ -61,7 +62,7 @@ def run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, m
     call_or_die(align_cmd)
 
     # FIXME: add memory limit to sort.
-    # FIXME: glob is not the best approach. Use PVC_sequence_num_to_name instead?
+    # FIXME: glob is not the best approach. Use PVC_sequence_num_to_name instead? (or replace with sample indices)
     unsorted_bams = glob.glob(f"{output_folder}/all_mapped.REF_*.bam")
     print("Got unsorted bams:", unsorted_bams)
     for unsorted_bam in unsorted_bams:
@@ -76,7 +77,7 @@ def run_panvc_aligner(reads_1, reads_2, pgindex_dir, chr_list, ploidy, n_refs, m
         Path(output_folder + "/" + chr_id).mkdir()
 
         for curr_ref in range(1,n_refs+1):
-            curr_fasta_name = PVC_sequence_num_to_name(samples_name_file, len(chr_list), ploidy, chr_id, curr_ref)
+            curr_fasta_name = str(curr_ref) #PVC_sequence_num_to_name(samples_name_file, len(chr_list), ploidy, chr_id, curr_ref)
             bam_file = output_folder + "/all_sorted.REF_" + curr_fasta_name  + ".bam"
             sam_file = output_folder + "/" + chr_id  + "/mapped_reads_to" + str(curr_ref) + ".sam.gz"
             if not os.path.isfile(bam_file):

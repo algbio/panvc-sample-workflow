@@ -1,0 +1,106 @@
+PANVC_DIR			= "."
+GAP_POSITIONS_BIN	= f"{PANVC_DIR}/components/pan_genome_index_real/store_gap_pos/src/store_gaps"
+CHIC_INDEX_BIN		= f"{PANVC_DIR}/components/pan_genome_index_real/CHIC/src/chic_index"
+
+
+CHR_NAMES = [chr_name for chr_name, _ in config["input_a2m"]]
+REF_INDICES = [1 + x for x in range(config["n_refs"])]
+
+
+wildcard_constraints:
+	chr_id					= "|".join(map(lambda chr_name: f"({re.escape(chr_name)})", CHR_NAMES))
+
+
+rule all:
+	input:
+		std_ref					= expand("{index_root}/std_ref.fa", index_root = config["index_root"]),
+		max_edit_distance_file	= expand("{index_root}/max_edit_distance.txt", index_root = config["index_root"]),
+		max_read_len_file		= expand("{index_root}/max_read_len.txt", index_root = config["index_root"]),
+		chr_list_file			= expand("{index_root}/chr_list.txt", index_root = config["index_root"]),
+		len_files				= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gaps.len", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
+		sp_files				= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gaps.sp", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
+		bowtie_index			= expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
+	run:
+		print(f"Index has been generated at {config['index_root']}.")
+
+rule max_edit_distance_file:
+	output: expand("{index_root}/max_edit_distance.txt", index_root = config["index_root"])
+	run:
+		with open(f"{output}", "w") as f:
+			f.write(str(config["max_edit_distance"]))
+
+rule max_read_len_file:
+	output: expand("{index_root}/max_read_len.txt", index_root = config["index_root"])
+	run:
+		with open(f"{output}", "w") as f:
+			f.write(str(config["max_read_length"]))
+
+rule chr_list_file:
+	output: expand("{index_root}/chr_list.txt", index_root = config["index_root"])
+	run:
+		with open(f"{output}", "w") as f:
+			for chr_name, _ in config["input_a2m"]:
+				f.write(chr_name)
+				f.write("\n")
+
+rule a2m_prepare:
+	conda:					"workflow/envs/panvc.yaml"
+	output:	
+		names_plain			= expand("{index_root}/{{chr_id}}/names.plain", index_root = config["index_root"]),
+		n_refs				= expand("{index_root}/{{chr_id}}/n_refs.txt", index_root = config["index_root"]),
+		msa_len				= expand("{index_root}/{{chr_id}}/msa_len.txt", index_root = config["index_root"]),
+		gapped_recombinants	= expand("{index_root}/{{chr_id}}/recombinant.n{seq_idx}.gapped", index_root = config["index_root"], seq_idx = REF_INDICES)
+	script:					"workflow/scripts/panvc_a2m_prepare.py"
+
+rule all_sequences_file:
+	# Actually more outputs.
+	input:
+		names_plain			= expand("{index_root}/{chr_id}/names.plain", index_root = config["index_root"], chr_id = CHR_NAMES),
+		n_refs				= expand("{index_root}/{chr_id}/n_refs.txt", index_root = config["index_root"], chr_id = CHR_NAMES),
+		msa_len				= expand("{index_root}/{chr_id}/msa_len.txt", index_root = config["index_root"], chr_id = CHR_NAMES),
+		gapped_recombinants	= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gapped", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES)
+	output:					expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
+	run:
+		with open(f"{output[0]}", "x") as dst:
+			for curr_ref in range(1, 1 + config["n_refs"]):
+				for chr_id, _ in config["input_a2m"]:
+					src_dir = f"{config['index_root']}/{chr_id}"
+					sequence_gapped_path = f"{src_dir}/recombinant.n{curr_ref}.gapped"
+					ref_name = f"pg_ref_{chr_id}_{curr_ref}"
+					
+					dst.write(">")
+					dst.write(ref_name)
+					dst.write("\n")
+					
+					with open(sequence_gapped_path, "r") as src:
+						for c in src:	# Includes terminating newline.
+							if not ("-" == c):
+								dst.write(c)
+
+rule gap_positions:
+	conda:					"workflow/envs/panvc.yaml"
+	input:
+		gapped_recombinants	= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gapped", index_root = config["index_root"])
+	params:
+		gap_pos_prefix		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps", index_root = config["index_root"])
+	output:
+		len_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.len", index_root = config["index_root"]),
+		sp_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.sp", index_root = config["index_root"])
+	shell:					"{GAP_POSITIONS_BIN} {input.gapped_recombinants} {params.gap_pos_prefix}"
+
+rule chic_index:
+	# Actually more outputs.
+	conda:		"workflow/envs/panvc.yaml"
+	threads:	workflow.cores
+	input:		expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
+	output:		expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
+	params:
+		max_read_length		= config["max_read_length"],
+		max_edit_distance	= config["max_edit_distance"],
+		max_memory_MB		= config["max_memory_MB"]
+	shell:		"{CHIC_INDEX_BIN} {input} {params.max_read_length} --kernel=BOWTIE2 --lz-parsing-method=RELZ --max-edit-distance={params.max_edit_distance} --mem={params.max_memory_MB} --threads={threads} --verbose=2"
+
+rule std_ref:
+	conda:		"workflow/envs/panvc.yaml"
+	output:		expand("{index_root}/std_ref.fa", index_root = config["index_root"])
+	script:		"workflow/scripts/panvc_a2m_to_std_ref.py"

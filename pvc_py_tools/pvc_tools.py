@@ -154,35 +154,6 @@ def PVC_merge_reads(reads_1, reads_2, output_folder):
     print(f"{end} Time taken (PVC_merge_reads): {end - start}")
     return output
 
-def PVC_sequence_num_to_name(SAMPLES_FILENAME, n_chroms , PLOIDY, CHR_ID, SEQ_ID):
-    assert (SEQ_ID >= 1)
-    hap_suffix = ""
-    if (SEQ_ID != 1) :
-        offset = SEQ_ID - 2
-        target_line = 1 + (offset//PLOIDY)
-        hap_suffix = "_" + str(offset % PLOIDY)
-    else:
-        target_line = 0
-        hap_suffix = ""
-
-    with open(SAMPLES_FILENAME, 'r') as f:
-        curr_name = f.readline()
-
-    # Open and read file into buffer
-    f = open(SAMPLES_FILENAME,"r")
-    sample_names = f.readlines()
-
-    chr_suffix = ""
-    if (n_chroms != 1) :
-        chr_suffix="_CHR"+str(CHR_ID)
-
-    #we are currently deleting whitespaces from the samples names;
-    #if a replacement is needed just change the next line.
-    SPACEREPLACEMENT=""
-    #answer="PG_REF_"+str(SEQ_ID)+"_CHR"+str(CHR_ID)
-    answer = sample_names[target_line].strip().replace(" ", SPACEREPLACEMENT)+hap_suffix+chr_suffix
-    return answer
-
 def PVC_splitA2M(A2M_FILENAME, target_folder):
     start = datetime.now()
     print (f"{start} splitting A2M")
