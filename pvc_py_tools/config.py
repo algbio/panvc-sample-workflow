@@ -4,16 +4,10 @@ import os
 
 CURR_PATH = os.path.dirname(os.path.realpath(__file__))
 PANVC_DIR = CURR_PATH + "/.."
-chic_index_bin		= PANVC_DIR + "/components/pan_genome_index_real/CHIC/src/chic_index"
-vcf2names_bin		= PANVC_DIR + "/components/pan_genome_index_real/ext/vcflib/bin/vcfsamplenames"
-vcfbreakmulti_bin	= PANVC_DIR + "/components/pan_genome_index_real/ext/vcflib/bin/vcfbreakmulti"
-vcfcombine_bin		= PANVC_DIR + "/components/pan_genome_index_real/ext/vcflib/bin/vcfcombine"
-vcfcreatemulti_bin	= PANVC_DIR + "/components/pan_genome_index_real/ext/vcflib/bin/vcfcreatemulti"
-vcf2fastas_bin		= PANVC_DIR + "/components/pan_genome_index_real/ext/vcf2multialign"
-CHIC_ALIGN_BIN		= PANVC_DIR + "/components/pan_genome_index_real/CHIC/src/chic_align"
-VCFCHECK_BIN		= PANVC_DIR + "/components/pan_genome_index_real/ext/vcflib/bin/vcfcheck"
-HP_BIN				= PANVC_DIR +  "/components/lightweight_heaviest_paths/src/heaviest_path"
-MATRIX_PRINT_BIN	= PANVC_DIR +  "/components/lightweight_heaviest_paths/src/print_matrix"
+CHIC_INDEX_BIN		= PANVC_DIR + "/components/CHIC/src/chic_index"
+CHIC_ALIGN_BIN		= PANVC_DIR + "/components/CHIC/src/chic_align"
+HP_BIN				= PANVC_DIR + "/components/lightweight_heaviest_paths/src/heaviest_path"
+MATRIX_PRINT_BIN	= PANVC_DIR + "/components/lightweight_heaviest_paths/src/print_matrix"
 SPLIT_AND_SORT_BIN	= PANVC_DIR + "/components/lightweight_heaviest_paths/src/split_and_sort"
 PILEUP_BIN			= PANVC_DIR + "/components/lightweight_heaviest_paths/src/pileup"
 
