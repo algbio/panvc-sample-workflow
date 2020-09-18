@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import re
 import sys
@@ -29,6 +28,23 @@ def chr_names(paths):
 		yield (chr_name, path)
 
 
+def write_config(config_output_path, pgindex_dir, input_a2m_paths, max_edit_distance, max_read_length, max_memory_MB, a2m_path_prefix = "", tempdir = tempfile.gettempdir()):
+	with open(config_output_path, "x") as f:
+		config = {}
+		
+		config["index_root"] = pgindex_dir
+		config["input_a2m"] = [(chr_name, f"{a2m_path_prefix}/{path}" if 0 < len(a2m_path_prefix) else path) for chr_name, path in chr_names(input_a2m_paths)]
+		config["n_refs"] = count_sequences(input_a2m_paths[0])
+		
+		config["max_edit_distance"] = max_edit_distance
+		config["max_read_length"] = max_read_length
+		
+		config["max_memory_MB"] = max_memory_MB
+		config["tempdir"] = tempdir
+		
+		yaml.dump(config, f)
+
+
 def main():
 	parser = argparse.ArgumentParser(description = "Align reads to a PanVC-indexed pan-genome.")
 	parser.add_argument("--input-a2m", nargs = "+", help = "Input A2M files. File name without suffix will be used as the chromosome name.")
@@ -39,26 +55,7 @@ def main():
 	parser.add_argument("-m", "--max-memory-MB", type = int, default = 8192, help = "Amount of RAM to use with most of the tools (MB)")
 
 	args = parser.parse_args()
-	
-	with open(args.output_config, "x") as f:
-		config = {}
-		
-		pgindex_dir = args.pgindex_dir
-		config["index_root"] = pgindex_dir
-		
-		config["input_a2m"] = [x for x in chr_names(args.input_a2m)]
-		
-		config["n_refs"] = count_sequences(args.input_a2m[0])
-		
-		config["max_edit_distance"] = args.max_edit_distance
-		config["max_read_length"] = args.max_read_length
-		
-		config["max_memory_MB"] = args.max_memory_MB
-		
-		tempdir = tempfile.gettempdir()
-		config["tempdir"] = tempdir
-		
-		yaml.dump(config, f)
+	write_config(args.output_config, args.pgindex_dir, args.input_a2m, args.max_edit_distance, args.max_read_length, args.max_memory_MB)
 
 if __name__ == "__main__":
 	main()
