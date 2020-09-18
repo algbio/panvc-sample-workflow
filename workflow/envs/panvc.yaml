@@ -16,3 +16,4 @@ dependencies:
 - libdivsufsort = 2.0.2
 - cmake = 3.18.2
 - boost-cpp = 1.74.0
+- panvc
