@@ -11,7 +11,7 @@ from config import *
 
 
 PANVC_DIR			= "."
-COMBINE_MSA_VCF_BIN	= PANVC_DIR + "/components/pan_genome_index_real/ext/combine_msa_vcf"
+COMBINE_MSA_VCF_BIN	= PANVC_DIR + "/components/combine_msa_vcf"
 
 
 def seq_id():
@@ -57,6 +57,17 @@ rule all:
 		print("Done. The variants have been written to the following files:")
 		for path in input:
 			print(path)
+
+rule get_combine_msa_vcf:
+	# Building vcf2multialign on Linux with conda-build is difficult b.c. the build process requires Clang.
+	output:		f"{COMBINE_MSA_VCF_BIN}"
+	script:
+		set -e
+		set -x
+		cd f"{PANVC_DIR}/components"
+		wget https://github.com/tsnorri/vcf2multialign/releases/download/v0.6/vcf2multialign-0.6-120ad44-linux-static.tar.gz
+		tar xvf vcf2multialign-0.6-120ad44-linux-static.tar.gz
+		mv vcf2multialign-0.6-120ad44/combine_msa_vcf .
 
 rule baseline_link_reference:
 	input:		expand("{index_root}/std_ref.fa", index_root = config["index_root"])
@@ -478,7 +489,8 @@ rule panvc_normalize_variants:
 	input:
 		variants_relative_to_adhoc_reference	= expand("{output_root}/ext_vc_files/{{chr_id}}/variants.{{variant_caller}}.vcf", output_root = config["output_root"]),
 		original_multialigned_reference			= expand("{index_root}/{{chr_id}}/recombinant.n1.gapped", index_root = config["index_root"]),
-		adhoc_reference							= expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"])
+		adhoc_reference							= expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"]),
+		combine_msa_vcf							= f"{COMBINE_MSA_VCF}"
 	output:										expand("{output_root}/ext_vc_files/{{chr_id}}/variants.normalized.{{variant_caller}}.vcf", output_root = config["output_root"])
 	params:
 		chromosome_list							= config["chromosome_list"],
