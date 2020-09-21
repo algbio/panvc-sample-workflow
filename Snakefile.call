@@ -1,0 +1,493 @@
+import itertools
+import sys
+import re
+
+sys.path.append(f"{workflow.basedir}/pvc_py_tools")
+from pvc_tools import PVC_load_var
+from config import *
+
+
+PANVC_DIR			= "."
+COMBINE_MSA_VCF_BIN	= PANVC_DIR + "/components/pan_genome_index_real/ext/combine_msa_vcf"
+
+
+def seq_id():
+	global config
+	return range(1, 1 + config["n_refs"])
+
+def adhoc_ref_all_files(wildcard = None):
+	"""Heaviest paths output."""
+	global config
+	output_root = config["output_root"]
+	chr_list = config["chromosome_list"]
+	return {f"adhoc_ref_{chr_id}": f"{output_root}/adhoc_ref_files/{chr_id}/adhoc_reference.aligned_to_ref" for chr_id in chr_list}
+
+def output_variants():
+	"""Final variant file names."""
+	global config
+	return [x for x in itertools.chain(
+		map(lambda x: f"ext_vc_files/pg_variants.{x}.vcf", config["variant_caller"]),
+		map(lambda x: f"baseline_vc_files/variants.{x}.vcf", config["variant_caller"])
+	)]
+
+def create_reference_symlink(src, dst):
+	import os
+	
+	abs_src = os.path.abspath(src)
+	abs_dst = os.path.abspath(dst)
+	abs_dst_dir = os.path.dirname(abs_dst)
+	rel_src = os.path.relpath(abs_src, start = abs_dst_dir)
+	print(f"{rel_src} -> {abs_dst}")
+	shell("mkdir -p {abs_dst_dir}")
+	os.symlink(rel_src, abs_dst)
+
+
+wildcard_constraints:
+	chr_id					= "|".join(map(lambda chr_id: f"({re.escape(chr_id)})", config["chromosome_list"])),
+	workflow_path			= "((ext_vc_files)|(baseline_vc_files))",
+	variant_caller			= "(gatk)|(samtools)"
+
+
+rule all:
+	input:	expand("{output_root}/{variant_file_path}", output_root = config["output_root"], variant_file_path = output_variants())
+	run:
+		print("Done. The variants have been written to the following files:")
+		for path in input:
+			print(path)
+
+rule baseline_link_reference:
+	input:		expand("{index_root}/std_ref.fa", index_root = config["index_root"])
+	output:		expand("{output_root}/baseline_vc_files/reference.fa", output_root = config["output_root"])
+	run:
+		create_reference_symlink(input[0], output[0])
+
+rule bwa_index_ref:
+	message:		"Indexing reference for BWA"
+	conda:			"workflow/envs/panvc.yaml"
+	input:			expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"])
+	output:			expand("{output_root}/{{workflow_path}}/reference.fa.bwt", output_root = config["output_root"])
+	shell:			"bwa index {input}"
+
+rule samtools_index_ref:
+	message:		"Indexing reference for Samtools"
+	conda:			"workflow/envs/panvc.yaml"
+	input:			expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"])
+	output:			expand("{output_root}/{{workflow_path}}/reference.fa.fai", output_root = config["output_root"])
+	shell:			"samtools faidx {input}"
+
+rule gatk_index_ref:
+	message:		"Indexing reference for GATK"
+	conda:			"workflow/envs/panvc.yaml"
+	input:			expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"])
+	output:			expand("{output_root}/{{workflow_path}}/reference.dict", output_root = config["output_root"])
+	shell:			"gatk CreateSequenceDictionary --REFERENCE {input} --OUTPUT {output}"
+
+rule mark_duplicates:
+	message:		"Marking duplicate reads"
+	conda:			"workflow/envs/panvc.yaml"
+	input:			expand("{output_root}/{{workflow_path}}/merged_reads.{{variant_caller}}.bam", output_root = config["output_root"])
+	output:
+		aligned_deduplicated	= expand("{output_root}/{{workflow_path}}/aligned_deduplicated.{{variant_caller}}.bam", output_root = config["output_root"]),
+		metrics					= expand("{output_root}/{{workflow_path}}/duplication_metrics.{{variant_caller}}.bam", output_root = config["output_root"])
+	params:
+		tempdir		= config["tempdir"]
+	shell:			"gatk"
+		" --java-options '-Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" MarkDuplicates"
+		" --TMP_DIR {params.tempdir}"
+		" --INPUT {input}"
+		" --OUTPUT {output.aligned_deduplicated}"
+		" --METRICS_FILE {output.metrics}"
+		" --VALIDATION_STRINGENCY SILENT"
+		" --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500"
+		" --ASSUME_SORT_ORDER queryname"
+		" --CREATE_MD5_FILE true"
+		" --USE_JDK_DEFLATER true"
+		" --USE_JDK_INFLATER true"
+
+rule panvc_generate_reads_all:
+	message:				"Merging reads"
+	conda:					"workflow/envs/panvc.yaml"
+	input:
+		reads_file_1		= config["reads_file_1"],
+		reads_file_2		= config["reads_file_2"]
+	output:					config["reads_all_path"]
+	shell:
+		"""
+		input_1={input.reads_file_1}
+		if [ ${{input_1: -3}} == ".gz" ]
+		then
+			awk '{{if ((NR-1) % 4 == 0) print \"@\"1+(NR-1)/4; else print }}' <(zcat {input.reads_file_1}) <(zcat {input.reads_file_2}) | gzip > {output}
+		else
+			awk '{{if ((NR-1) % 4 == 0) print \"@\"1+(NR-1)/4; else print }}' {input.reads_file_1} {input.reads_file_2} | gzip > {output}
+		fi
+		"""
+
+rule panvc_align_reads:
+	message:				"Aligning reads with CHIC"
+	conda:					"workflow/envs/panvc.yaml"
+	input:
+		reads_all			= config["reads_all_path"]
+	output:
+		# PanVC uses a rather complex file naming scheme for its outputs, so only one of the files is listed here.
+		mapped_1			= expand("{output_root}/sam_files/{chr1}/mapped_reads_to1.sam.gz", output_root = config["output_root"], chr1 = config["chromosome_list"][0][0])
+	params:
+		chromosome_list		= config["chromosome_list"],
+		ploidy				= config["ploidy"],
+		index_root			= config["index_root"],
+		n_refs				= config["n_refs"],
+		max_read_len		= config["max_read_len"],
+		max_edit_distance	= config["max_edit_distance"],
+		output_root			= config["output_root"]
+	threads:				workflow.cores
+	script:					"workflow/scripts/panvc_align_reads.py"
+
+rule panvc_sam_to_positions:
+	message:			"Running sam_to_positions"
+	input:
+		all_sorted		= expand("{output_root}/sam_files/all_sorted.REF_pg_ref_chr1_1.bam", output_root = config["output_root"]),
+		recombinant_all	= expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
+	output:
+		mapped_reads	= expand("{output_root}/sam_files/{chr_id}/mapped_reads_to{seq}.pos", output_root = config["output_root"], chr_id = config["chromosome_list"], seq = seq_id())
+	log:
+		expand("{output_root}/logs/sam_to_pos_main.log", output_root = config['output_root'])
+	params:
+		index_root		= config["index_root"],
+		chromosome_list	= config["chromosome_list"],
+		sensibility		= config["sensibility"],
+		n_refs			= config["n_refs"],
+		sam_output_dir	= expand("{output_root}/sam_files", output_root = config["output_root"])
+	conda:				"workflow/envs/panvc.yaml"
+	script:				"workflow/scripts/panvc_sam_to_positions.py"
+
+rule panvc_split_and_sort:
+	message:			"Running split_and_sort"
+	input:
+		pos_files		= expand("{output_root}/sam_files/{{chr_id}}/mapped_reads_to{{seq}}.pos", output_root = config["output_root"])
+	output:
+		starts_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.starts", output_root = config["output_root"]),
+		ends_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.ends", output_root = config["output_root"])
+	params:
+		gaps_prefix		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq}}.gaps", index_root = config["index_root"]),
+		temp_prefix		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}", output_root = config["output_root"]),
+		msa_len			= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}"),
+		read_len		= lambda wildcards: PVC_load_var("read_len", f"{config['output_root']}/sam_files")
+	shell:				"{SPLIT_AND_SORT_BIN} {input.pos_files} {params.gaps_prefix} {params.temp_prefix} {params.msa_len} {params.read_len}"
+
+rule panvc_pileup:
+	message:			"Doing pileup"
+	input:
+		starts_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.starts", output_root = config["output_root"]),
+		ends_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.ends", output_root = config["output_root"]),
+	output:				expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.sums", output_root = config["output_root"])
+	params:
+		tmp_prefix		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}", output_root = config["output_root"])
+	shell:				"{PILEUP_BIN} {params.tmp_prefix}"
+
+rule panvc_pileup_sums:
+	message:	"Generating sum file list"
+	input:		expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{seq}.sums", output_root = config["output_root"], seq = seq_id())
+	output:		expand("{output_root}/sam_files/{{chr_id}}/sum_files.txt", output_root = config["output_root"])
+	run:
+		with open(f"{output}", "w") as f:
+			print(f"Writing to {output}")
+			for fname in input:
+				f.write(fname)
+				f.write("\n")
+
+rule panvc_heaviest_paths:
+	message:	"Determining heaviest paths"
+	input:
+		recombinant_all							= expand("{index_root}/recombinant.all.fa", index_root = config["index_root"]),
+		sum_file_list							= expand("{output_root}/sam_files/{{chr_id}}/sum_files.txt", output_root = config["output_root"]),
+	output:		expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"])
+	params:
+		index_root								= config["index_root"],
+		chromosome_list							= config["chromosome_list"],
+		n_chrom									= len(config["chromosome_list"]),
+		first_chr								= config["chromosome_list"][0],
+		n_refs									= config["n_refs"],
+		output_root								= config["output_root"],
+		msa_len									= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}")
+	shell:	"{HP_BIN} {input.sum_file_list} {params.index_root}/{wildcards.chr_id} {input.recombinant_all} {wildcards.chr_id} {params.n_chrom} {params.first_chr} {params.n_refs} {params.msa_len} {params.output_root}/adhoc_ref_files/{wildcards.chr_id}/adhoc_reference"
+
+rule panvc_combine_adhoc_ref:
+	message:	"Combining ad-hoc references"
+	input:		lambda wildcards: [path for path in adhoc_ref_all_files().values()]
+	output:		expand("{output_root}/ext_vc_files/reference.fa", output_root = config["output_root"])
+	run:
+		shell("rm -f {output}")
+		for ref_id, path in adhoc_ref_all_files().items():
+			shell("echo '>{ref_id}' >> {output}")
+			shell("tr -d - < {path} >> {output}")
+			shell("echo '' >> {output}")
+
+rule samtools_align_reads:
+	message:			"Aligning reads"
+	conda:				"workflow/envs/panvc.yaml"
+	input:
+		reads_file_1	= config["reads_file_1"],
+		reads_file_2	= config["reads_file_2"],
+		reference		= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"]),
+		bwa_indices		= expand("{output_root}/{{workflow_path}}/reference.fa.bwt", output_root = config["output_root"])
+	output:				expand("{output_root}/{{workflow_path}}/merged_reads.samtools.bam", output_root = config["output_root"])
+	threads:			workflow.cores
+	shell:				"bwa mem"
+		" -t {threads}"
+		" {input.reference}"
+		" {input.reads_file_1}"
+		" {input.reads_file_2} |"
+		" samtools view"
+		" -b"
+		" -@ {threads}"
+		" -o {output}"
+
+rule samtools_sort_aligned:
+	message:	"Sorting aligned reads"
+	conda:		"workflow/envs/panvc.yaml"
+	input:		expand("{output_root}/{{workflow_path}}/aligned_deduplicated.samtools.bam", output_root = config["output_root"])
+	output:		expand("{output_root}/{{workflow_path}}/sorted-alns2.samtools.bam", output_root = config["output_root"])
+	params:
+		memory_per_thread						= config["max_memory_MB"] / config["n_threads"] * 1024
+	threads:	workflow.cores
+	shell:		"samtools sort"
+		" -@ {threads}"
+		" -m {params.memory_per_thread}K"
+		" --output-fmt BAM"
+		" -o {output}"
+		" {input}"
+
+rule samtools_pileup:
+	message:			"Doing pileup"
+	conda:				"workflow/envs/panvc.yaml"
+	input:
+		aligned_reads	= expand("{output_root}/{{workflow_path}}/sorted-alns2.samtools.bam", output_root = config["output_root"]),
+		reference		= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"])
+	output:				expand("{output_root}/{{workflow_path}}/variants.samtools.raw.bcf", output_root = config["output_root"])
+	params:
+		ploidy_file		= config["ploidy_file"]
+	shell:				"bcftools mpileup"
+		" --output-type u"
+		" --fasta-ref {input.reference} {input.aligned_reads} |"
+		" bcftools call"
+		" --ploidy {params.ploidy_file}"
+		" --output-type u"
+		" --variants-only"
+		" --multiallelic-caller > {output}"
+
+rule samtools_filter_variants:
+	message:	"Filtering variants"
+	conda:		"workflow/envs/panvc.yaml"
+	input:		expand("{output_root}/{{workflow_path}}/variants.samtools.raw.bcf", output_root = config["output_root"])
+	output:		expand("{output_root}/{{workflow_path}}/variants.samtools.vcf", output_root = config["output_root"])
+	shell:		"bcftools view {input} | vcfutils.pl varFilter -D100 > {output}"
+
+rule gatk_align_reads:
+	message:					"Aligning reads"
+	conda:						"workflow/envs/panvc.yaml"
+	input:
+		reads_file_1			= config["reads_file_1"],
+		reads_file_2			= config["reads_file_2"],
+		reference				= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"]),
+		reference_bwa_index		= expand("{output_root}/{{workflow_path}}/reference.fa.bwt", output_root = config["output_root"]),
+	output:						expand("{output_root}/{{workflow_path}}/aligned_reads.gatk.bam", output_root = config["output_root"])
+	resources:
+		mem_mb					= config["max_memory_MB"]
+	params:
+		tempdir					= config["tempdir"]
+	threads:					workflow.cores
+	shell:						"bwa mem"
+		" -K 100000000"
+		" -v 3"
+		" -t {threads}"
+		" -Y"
+		" {input.reference}"
+		" {input.reads_file_1}"
+		" {input.reads_file_2} |"
+		" gatk "
+		" --java-options '-Xmx{resources.mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" SortSam"
+		" --TMP_DIR {params.tempdir}"
+		" --USE_JDK_DEFLATER true"
+		" --USE_JDK_INFLATER true"
+		" --SORT_ORDER queryname"
+		" --INPUT /dev/stdin"
+		" --OUTPUT {output}"
+
+rule gatk_fastq_to_unaligned:
+	message:			"Converting FASTQ to unaligned BAM"
+	conda:				"workflow/envs/panvc.yaml"
+	input:
+		reads_file_1	= config["reads_file_1"],
+		reads_file_2	= config["reads_file_2"]
+	output:				expand("{output_root}/input_reads_unaligned.ubam", output_root = config["output_root"])
+	resources:
+		mem_mb			= config["max_memory_MB"]
+	params:
+		tempdir			= config["tempdir"]
+	shell:				"gatk"
+		" --java-options '-Xmx{resources.mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" FastqToSam"
+		" -F1 {input.reads_file_1}"
+		" -F2 {input.reads_file_2}"
+		" --SAMPLE_NAME sample1"
+		" -O {output}"
+		" --TMP_DIR {params.tempdir}"
+		" --USE_JDK_DEFLATER true"
+		" --USE_JDK_INFLATER true"
+
+rule gatk_merge_aligned_unaligned:
+	message:			"Merging aligned and unaligned reads"
+	conda:				"workflow/envs/panvc.yaml"
+	input:
+		unaligned_reads	= expand("{output_root}/input_reads_unaligned.ubam", output_root = config["output_root"]),
+		aligned_reads	= expand("{output_root}/{{workflow_path}}/aligned_reads.gatk.bam", output_root = config["output_root"]),
+		reference		= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"]),
+		reference_dict	= expand("{output_root}/{{workflow_path}}/reference.dict", output_root = config["output_root"]),
+	output:				expand("{output_root}/{{workflow_path}}/merged_reads.gatk.bam", output_root = config["output_root"])
+	params:
+		tempdir			= config["tempdir"]
+	shell:				"gatk"
+		" --java-options '-Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" MergeBamAlignment"
+		" --TMP_DIR {params.tempdir}"
+		" --VALIDATION_STRINGENCY SILENT"
+		" --EXPECTED_ORIENTATIONS FR"
+		" --ATTRIBUTES_TO_RETAIN X0"
+		" --ALIGNED_BAM {input.aligned_reads}"
+		" --UNMAPPED_BAM {input.unaligned_reads}"
+		" --OUTPUT {output}"
+		" --REFERENCE_SEQUENCE {input.reference}"
+		" --PAIRED_RUN true"
+		" --SORT_ORDER unsorted"
+		" --IS_BISULFITE_SEQUENCE false"
+		" --ALIGNED_READS_ONLY false"
+		" --CLIP_ADAPTERS false"
+		" --MAX_RECORDS_IN_RAM 2000000"
+		" --ADD_MATE_CIGAR true"
+		" --MAX_INSERTIONS_OR_DELETIONS -1"
+		" --PRIMARY_ALIGNMENT_STRATEGY MostDistant"
+		" --UNMAPPED_READ_STRATEGY COPY_TO_TAG"
+		" --ALIGNER_PROPER_PAIR_FLAGS true"
+		" --UNMAP_CONTAMINANT_READS true"
+		" --USE_JDK_DEFLATER true"
+		" --USE_JDK_INFLATER true"
+
+rule gatk_sort_aligned_deduplicated_reads:
+	message:			"Sorting aligned reads"
+	conda:				"workflow/envs/panvc.yaml"
+	input:				expand("{output_root}/{{workflow_path}}/aligned_deduplicated.gatk.bam", output_root = config["output_root"])
+	output:				expand("{output_root}/{{workflow_path}}/aligned_deduplicated_sorted.gatk.bam", output_root = config["output_root"])
+	resources:
+		mem_mb			= config["max_memory_MB"]
+	params:
+		tempdir			= config["tempdir"],
+		initial_mem_mb	= min(4000, config["max_memory_MB"])
+	shell:				"gatk"
+		" --java-options '-Xmx{resources.mem_mb}M -Xms{params.initial_mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" SortSam"
+		" --TMP_DIR {params.tempdir}"
+		" --INPUT {input}"
+		" --OUTPUT {output}"
+		" --SORT_ORDER coordinate"
+		" --CREATE_INDEX false"
+		" --CREATE_MD5_FILE false"
+		" --USE_JDK_DEFLATER true"
+		" --USE_JDK_INFLATER true"
+
+rule gatk_set_nm_uq_tags:
+	message:								"Setting NM and UQ tags"
+	conda:									"workflow/envs/panvc.yaml"
+	input:
+		reference							= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"]),
+		aligned_deduplicated_sorted_reads	= expand("{output_root}/{{workflow_path}}/aligned_deduplicated_sorted.gatk.bam", output_root = config["output_root"])
+	output:									expand("{output_root}/{{workflow_path}}/sortedfixed.gatk.bam", output_root = config["output_root"])
+	resources:
+		mem_mb								= config["max_memory_MB"]
+	params:
+		tempdir								= config["tempdir"],
+		initial_mem_mb						= min(500, config["max_memory_MB"])
+	shell:									"gatk"
+		" --java-options '-Xmx{resources.mem_mb}M -Xms{params.initial_mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" SetNmAndUqTags"
+		" --TMP_DIR {params.tempdir}"
+		" --INPUT {input.aligned_deduplicated_sorted_reads}"
+		" --OUTPUT {output}"
+		" --CREATE_INDEX true"
+		" --CREATE_MD5_FILE true"
+		" --REFERENCE_SEQUENCE {input.reference}"
+		" --USE_JDK_DEFLATER true"
+		" --USE_JDK_INFLATER true"
+
+rule gatk_call_variants:
+	message:			"Calling variants with GATK"
+	conda:				"workflow/envs/panvc.yaml"
+	input:
+		reference		= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"]),
+		reference_dict	= expand("{output_root}/{{workflow_path}}/reference.dict", output_root = config["output_root"]),
+		aligned_reads	= expand("{output_root}/{{workflow_path}}/sortedfixed.gatk.bam", output_root = config["output_root"])
+	output:				expand("{output_root}/{{workflow_path}}/variants.gatk.vcf", output_root = config["output_root"])
+	resources:
+		mem_mb			= config["max_memory_MB"]
+	params:
+		tempdir			= config["tempdir"],
+		ploidy			= config["ploidy"]
+	shell:				"gatk"
+		" --java-options '-Xmx{resources.mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" HaplotypeCaller"
+		" -ploidy {params.ploidy}"
+		" -R {input.reference}"
+		" -I {input.aligned_reads}"
+		" -O {output}"
+		" -pairHMM LOGLESS_CACHING"
+		" --use-jdk-deflater"
+		" --use-jdk-inflater"
+
+rule panvc_split_adhoc_relative_variants_by_chromosome:
+	message:	"Splitting variants relative to ad-hoc reference"
+	input:		expand("{output_root}/ext_vc_files/variants.{{variant_caller}}.vcf", output_root = config["output_root"])
+	output:		expand("{output_root}/ext_vc_files/{chr_id}/variants.{{variant_caller}}.vcf", output_root = config["output_root"], chr_id = config["chromosome_list"])
+	run:
+		output_root = config["output_root"]
+		for chr_id in config["chromosome_list"]:
+			shell("mkdir -p {output_root}/ext_vc_files/{chr_id}")
+		
+		chrom_re = re.compile(r"^adhoc_ref_([^\t]+)\t")
+		with open(input[0], "r") as src_vcf:
+			path_fn = lambda chr_id: f"{output_root}/ext_vc_files/{chr_id}/variants.{wildcards.variant_caller}.vcf"
+			dst_files = {chr_id: open(path_fn(chr_id), "x") for chr_id in config["chromosome_list"]}
+			for line in src_vcf:
+				if line.startswith("#"):
+					# Header line.
+					for dst in dst_files.values():
+						dst.write(line)
+				else:
+					# Determine the target file by the chromosome.
+					m = chrom_re.search(line)
+					if m:
+						chr_id = m.group(1)
+						if chr_id in dst_files:
+							dst_file = dst_files[chr_id]
+							dst_file.write(line)
+
+rule panvc_normalize_variants:
+	message:									"Normalizing variants"
+	input:
+		variants_relative_to_adhoc_reference	= expand("{output_root}/ext_vc_files/{{chr_id}}/variants.{{variant_caller}}.vcf", output_root = config["output_root"]),
+		original_multialigned_reference			= expand("{index_root}/{{chr_id}}/recombinant.n1.gapped", index_root = config["index_root"]),
+		adhoc_reference							= expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"])
+	output:										expand("{output_root}/ext_vc_files/{{chr_id}}/variants.normalized.{{variant_caller}}.vcf", output_root = config["output_root"])
+	params:
+		chromosome_list							= config["chromosome_list"],
+		index_root								= config["index_root"],
+		ploidy									= config["ploidy"]
+	shell:										"{COMBINE_MSA_VCF_BIN} --ref={input.original_multialigned_reference} --alt={input.adhoc_reference} --variants={input.variants_relative_to_adhoc_reference} --output-chr={params.chromosome_list} --ploidy={params.ploidy} > {output}"
+
+rule panvc_concatenate_variants:
+	message:				"Combining VCF files"
+	conda:					"workflow/envs/panvc.yaml"
+	input:					expand("{output_root}/ext_vc_files/{chr_id}/variants.normalized.{{variant_caller}}.vcf", output_root = config["output_root"], chr_id = config["chromosome_list"])
+	output:					expand("{output_root}/ext_vc_files/pg_variants.{{variant_caller}}.vcf", output_root = config["output_root"])
+	params:
+		space				= " "
+	shell:					"vcf-concat {input} > {output}"

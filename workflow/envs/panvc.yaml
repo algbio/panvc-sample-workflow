@@ -1,0 +1,19 @@
+channels:
+- anaconda
+- bioconda
+- conda-forge
+dependencies:
+- bcftools >= 1.9
+- biopython >= 1.77
+- bowtie2 = 2.3.5.1
+- bwa = 0.7.17
+- gatk4 >= 4.1.8.1
+- python >= 3.7
+- samtools >= 1.9
+- setuptools >= 49.6.0
+- perl-vcftools-vcf >= 0.1.16
+- sdsl-lite = 2.1.1
+- libdivsufsort = 2.0.2
+- cmake = 3.18.2
+- boost-cpp = 1.74.0
+- panvc
