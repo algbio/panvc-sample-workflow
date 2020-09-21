@@ -1,3 +1,6 @@
+# Copyright (c) Tuukka Norri 2020
+# Licenced under the MIT licence.
+
 from Bio import SeqIO
 import pathlib
 

@@ -1,3 +1,6 @@
+# Copyright (c) Daniel Valenzuela, Tuukka Norri 2019–2020
+# Licenced under the MIT licence.
+
 import distutils.spawn as ds
 import os
 

@@ -1,3 +1,6 @@
+# Copyright (c) Tuukka Norri 2020
+# Licenced under the MIT licence.
+
 GAP_POSITIONS_BIN	= f"components/store_gap_pos/src/store_gaps"
 CHIC_INDEX_BIN		= f"components/CHIC/src/chic_index"
 

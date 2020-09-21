@@ -1,3 +1,7 @@
+# Copyright (c) Tuukka Norri 2020
+# Licenced under the MIT licence.
+
+
 from Bio import SeqIO
 
 assert 1 == len(snakemake.output)

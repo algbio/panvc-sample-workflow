@@ -1,3 +1,6 @@
+# Copyright (c) Tuukka Norri 2020
+# Licenced under the MIT licence.
+
 import sys
 sys.path.append(f"{snakemake.scriptdir}/../../pvc_py_tools")
 from sam_to_positions import SamToPos

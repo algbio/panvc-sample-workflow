@@ -1,4 +1,8 @@
 #!/usr/bin/python3
+
+# Copyright (c) Daniel Valenzuela, Tuukka Norri 2019–2020
+# Licenced under the MIT licence.
+
 from config import *
 from pvc_tools import *
 import argparse

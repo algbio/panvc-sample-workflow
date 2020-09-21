@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+# Copyright (c) Tuukka Norri 2020
+# Licenced under the MIT licence.
+
 import argparse
 import sys
 import tempfile
