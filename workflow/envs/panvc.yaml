@@ -1,4 +1,5 @@
 channels:
+- tsnorri
 - anaconda
 - bioconda
 - conda-forge
@@ -12,8 +13,4 @@ dependencies:
 - samtools >= 1.9
 - setuptools >= 49.6.0
 - perl-vcftools-vcf >= 0.1.16
-- sdsl-lite = 2.1.1
-- libdivsufsort = 2.0.2
-- cmake = 3.18.2
-- boost-cpp = 1.74.0
 - panvc
