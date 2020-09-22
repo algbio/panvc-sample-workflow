@@ -2,13 +2,84 @@
 # Licenced under the MIT licence.
 
 import argparse
+import os
 import sys
 import tempfile
 import yaml
 
-CURRENT_PATH = dirname(__file__)
+CURRENT_PATH = os.path.dirname(__file__)
 sys.path.append(f"{CURRENT_PATH}/pvc_py_tools")
 from pvc_tools import PVC_load_var
+
+
+def write_config(
+	output_config,
+	index_root,
+	output_root,
+	reads_file_1,
+	reads_file_2,
+	vc_methods,
+	ploidy,
+	ploidy_file,
+	max_memory_MB,
+	should_store_merged_reads_with_originals,
+	should_run_baseline_vc
+):
+	with open(output_config, "x") as f:
+		config = {}
+		
+		config["index_root"] = index_root
+		config["output_root"] = output_root
+		
+		config["reads_file_1"] = reads_file_1
+		config["reads_file_2"] = reads_file_2
+		
+		workflow = ["pg"]
+		if should_run_baseline_vc:
+			workflow.append("baseline")
+		config["workflow"] = workflow
+		
+		variant_caller = []
+		if "GATK" in vc_methods:
+			variant_caller.append("gatk")
+		if "SAMTOOLS" in vc_methods:
+			variant_caller.append("samtools")
+		config["variant_caller"] = variant_caller
+		
+		chromosome_list = []
+		for line in open(f"{index_root}/chr_list.txt"):
+			chrom = line.rstrip("\n")
+			chromosome_list.append(chrom)
+		config["chromosome_list"] = chromosome_list
+		
+		config["ploidy"] = ploidy
+		config["ploidy_file"] = ploidy_file
+		
+		config["sensibility"] = 5
+		
+		config["n_refs"] = int(PVC_load_var("n_refs", f"{index_root}/{chromosome_list[0]}")) # FIXME: Allow varying the number of reference sequences per chromosome.
+		config["max_edit_distance"] = int(PVC_load_var("max_edit_distance", index_root))
+		config["max_read_len"] = int(PVC_load_var("max_read_len", index_root))
+		
+		config["max_memory_MB"] = max_memory_MB
+		
+		reads_1_dir  = os.path.dirname(reads_file_1)
+		reads_2_dir  = os.path.dirname(reads_file_2)
+		reads_1_base = os.path.basename(reads_file_1)
+		reads_2_base = os.path.basename(reads_file_2)
+		reads_common_prefix = os.path.commonprefix([reads_1_base, reads_2_base])
+		if should_store_merged_reads_with_originals:
+			config["reads_all_path"] = f"{reads_1_dir}/{reads_common_prefix}_ALL_RENAMED.fq.gz"
+		else:
+			config["reads_all_path"] = f"{output_root}/reads_ALL_RENAMED.fq.gz"
+
+		if os.path.exists(config["reads_all_path"]):
+			print(f"NOTE: {config['reads_all_path']} already exists.", file = sys.stderr)
+		
+		tempdir = tempfile.gettempdir()
+		config["tempdir"] = tempdir
+		
+		yaml.dump(config, f)
 
 
 def main():
@@ -26,56 +97,7 @@ def main():
 	parser.add_argument("-c", "--output-config", type = str, default = "panvc-config-align.yaml", help = "Configuration file output path")
 	
 	args = parser.parse_args()
+	write_config(args.pgindex_dir, args.output_dir, args.reads_file_1, args.reads_file_2, args.vc_method, args.ploidy, args.ploidy_file, args.max_memory_MB, args.store_merged_reads_with_originals, args.baseline_vc)
 	
-	with open(args.output_config, "x") as f:
-		config = {}
-		
-		pgindex_dir = args.pgindex_dir
-		config["index_root"] = pgindex_dir
-		config["output_root"] = args.output_dir
-		
-		config["reads_file_1"] = args.reads_file_1
-		config["reads_file_2"] = args.reads_file_2
-		
-		workflow = ["pg"]
-		if args.baseline_vc:
-			workflow.append("baseline")
-		config["workflow"] = workflow
-		
-		variant_caller = []
-		if "GATK" in args.vc_method:
-			variant_caller.append("gatk")
-		if "SAMTOOLS" in args.vc_method:
-			variant_caller.append("samtools")
-		config["variant_caller"] = variant_caller
-		
-		chromosome_list = []
-		for line in open(f"{pgindex_dir}/chr_list.txt"):
-			chrom = line.rstrip("\n")
-			chromosome_list.append(chrom)
-		config["chromosome_list"] = chromosome_list
-		
-		config["ploidy"] = args.ploidy
-		config["ploidy_file"] = args.ploidy_file
-		
-		config["sensibility"] = 5
-		
-		config["n_refs"] = int(PVC_load_var("n_refs", f"{pgindex_dir}/1")) # FIXME: Allow varying the number of reference sequences per chromosome.
-		config["max_edit_distance"] = int(PVC_load_var("max_edit_distance", pgindex_dir))
-		config["max_read_len"] = int(PVC_load_var("max_read_len", pgindex_dir))
-		
-		config["max_memory_MB"] = args.max_memory_MB
-		
-		if args.store_merged_reads_with_originals:
-			base = os.path.dirname(args.reads_file_1)
-			config["reads_all_path"] = f"{base}/reads_ALL_RENAMED.fq.gz"
-		else:
-			config["reads_all_path"] = f"{pgindex_dir}/reads_ALL_RENAMED.fq.gz"
-		
-		tempdir = tempfile.gettempdir()
-		config["tempdir"] = tempdir
-		
-		yaml.dump(config, f)
-
 if __name__ == "__main__":
 	main()
