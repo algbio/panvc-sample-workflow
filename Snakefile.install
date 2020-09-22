@@ -1,0 +1,6 @@
+# Copyright (c) Tuukka Norri 2020
+# Licenced under the MIT licence.
+
+rule conda_environment:
+	conda:					"workflow/envs/panvc.yaml"
+	shell:					"echo 'Done.'"
