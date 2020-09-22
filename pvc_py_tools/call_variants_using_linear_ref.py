@@ -3,7 +3,6 @@
 # Copyright (c) Daniel Valenzuela, Tuukka Norri 2019–2020
 # Licenced under the MIT licence.
 
-from config import *
 from pvc_tools import *
 import argparse
 import shutil
@@ -55,30 +54,27 @@ def BwaSamtoolsVC(args):
     if paired_flag:
         assert(Path(reads_file_2).is_file())
 
-    print ("Bwa path: " + BWA_BIN)
-    assert(Path(BWA_BIN).is_file())
-
     PVC_index_ref(reference)
-    bwa_align_command = f"{BWA_BIN} mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | {SAMTOOLS_BIN} view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
+    bwa_align_command = f"bwa mem -t {n_threads} {reference} {reads_file_1} {reads_file_2} | samtools view -b -@ {n_threads} -o {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
-    markdup_comm = GATK_BIN + f" --java-options '-Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'" \
-                            + f" MarkDuplicates" \
-                            + f" --INPUT {working_dir}/aligned_reads.bam"\
-                            + f" --OUTPUT {working_dir}/aligned_deduplicated.bam"\
-                            + f" --TMP_DIR={tempdir}"\
-                            + f" --METRICS_FILE {working_dir}/metrics.txt"\
-                            + f" --VALIDATION_STRINGENCY SILENT"\
-                            + f" --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500"\
-                            + f" --ASSUME_SORT_ORDER queryname"\
-                            + f" --CREATE_MD5_FILE true" \
-                            + f" --USE_JDK_DEFLATER true" \
-                            + f" --USE_JDK_INFLATER true"
-    call_or_die(markdup_comm)
+    markdup_comm = f"gatk --java-options '-Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'" \
+                   + f" MarkDuplicates" \
+                   + f" --INPUT {working_dir}/aligned_reads.bam"\
+                   + f" --OUTPUT {working_dir}/aligned_deduplicated.bam"\
+                   + f" --TMP_DIR={tempdir}"\
+                   + f" --METRICS_FILE {working_dir}/metrics.txt"\
+                   + f" --VALIDATION_STRINGENCY SILENT"\
+                   + f" --OPTICAL_DUPLICATE_PIXEL_DISTANCE 2500"\
+                   + f" --ASSUME_SORT_ORDER queryname"\
+                   + f" --CREATE_MD5_FILE true" \
+                   + f" --USE_JDK_DEFLATER true" \
+                   + f" --USE_JDK_INFLATER true"
+    call_or_die(mar)
     
 
     memory_per_thread = "%.0f" % (1024.0 * 1024.0 * args.max_memory_MB / n_threads)
-    samtools_sort_command = f"{SAMTOOLS_BIN} sort -@ {n_threads} -m {memory_per_thread} --output-fmt BAM -o {working_dir}/sorted-alns2.bam {working_dir}/aligned_deduplicated.bam"
+    samtools_sort_command = f"samtools sort -@ {n_threads} -m {memory_per_thread} --output-fmt BAM -o {working_dir}/sorted-alns2.bam {working_dir}/aligned_deduplicated.bam"
     call_or_die(samtools_sort_command)
 
     if args.skip_variant_calling:
@@ -86,11 +82,11 @@ def BwaSamtoolsVC(args):
 
     #TODO: rewrite without pipes. A system call with pipes can be dangerous.
     # FIXME Apparentlly ploidy should be specified for bcftools mpileup. However, there does not seem to be an option to do that and according to the manual, --samples-file’s second column is only handled by bcftools call.
-    pileup_command = f"{BCFTOOLS_BIN} mpileup --output-type u --fasta-ref {reference} {working_dir}/sorted-alns2.bam | {BCFTOOLS_BIN} call --ploidy {ploidy_file} --output-type u --variants-only --multiallelic-caller > {working_dir}/var.raw.bcf"
+    pileup_command = f"bcftools mpileup --output-type u --fasta-ref {reference} {working_dir}/sorted-alns2.bam | bcftools call --ploidy {ploidy_file} --output-type u --variants-only --multiallelic-caller > {working_dir}/var.raw.bcf"
     call_or_die(pileup_command)
     assert(Path(working_dir + "/var.raw.bcf").is_file())
 
-    filter_command = BCFTOOLS_BIN + " view " + working_dir + "/var.raw.bcf | " + VCFUTILS_BIN + " varFilter -D100 > " + working_dir + "/var.flt.vcf"
+    filter_command = "bcftools view " + working_dir + "/var.raw.bcf | " + VCFUTILS_BIN + " varFilter -D100 > " + working_dir + "/var.flt.vcf"
     call_or_die(filter_command)
 
     shutil.copy(working_dir + "/var.flt.vcf", output_file)
@@ -116,14 +112,12 @@ def BwaGATKVC(args):
     if paired_flag:
         assert(Path(reads_file_2).is_file())
 
-    assert(Path(BWA_BIN).is_file())
-    
     print ("############################################")
     print (" Read alignment")
     print ("############################################")
     PVC_index_ref(reference)
 
-    bwa_align_command = f"{BWA_BIN} mem -K 100000000 -v 3 -t {n_threads} -Y {reference} {reads_file_1} {reads_file_2} | {GATK_BIN} --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true' SortSam --TMP_DIR={tempdir} --USE_JDK_DEFLATER true --USE_JDK_INFLATER true --SORT_ORDER queryname --INPUT /dev/stdin --OUTPUT {working_dir}/aligned_reads.bam"
+    bwa_align_command = f"bwa mem -K 100000000 -v 3 -t {n_threads} -Y {reference} {reads_file_1} {reads_file_2} | gatk --java-options '-Xmx{max_memory_MB}M -Djava.io.tmpdir={tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true' SortSam --TMP_DIR={tempdir} --USE_JDK_DEFLATER true --USE_JDK_INFLATER true --SORT_ORDER queryname --INPUT /dev/stdin --OUTPUT {working_dir}/aligned_reads.bam"
     call_or_die(bwa_align_command)
     
     # Running GATK can cause a “pure virtual method called” error related to a native library.
