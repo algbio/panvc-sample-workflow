@@ -1,10 +1,6 @@
 # Copyright (c) Tuukka Norri 2020
 # Licenced under the MIT licence.
 
-GAP_POSITIONS_BIN	= f"components/store_gap_pos/src/store_gaps"
-CHIC_INDEX_BIN		= f"components/CHIC/src/chic_index"
-
-
 CHR_NAMES = [chr_name for chr_name, _ in config["input_a2m"]]
 REF_INDICES = [1 + x for x in range(config["n_refs"])]
 
@@ -88,7 +84,7 @@ rule gap_positions:
 	output:
 		len_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.len", index_root = config["index_root"]),
 		sp_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.sp", index_root = config["index_root"])
-	shell:					"{workflow.basedir}/{GAP_POSITIONS_BIN} {input.gapped_recombinants} {params.gap_pos_prefix}"
+	shell:					"panvc-store-gaps {input.gapped_recombinants} {params.gap_pos_prefix}"
 
 rule chic_index:
 	# Actually more outputs.
@@ -100,7 +96,7 @@ rule chic_index:
 		max_read_length		= config["max_read_length"],
 		max_edit_distance	= config["max_edit_distance"],
 		max_memory_MB		= config["max_memory_MB"]
-	shell:		"{workflow.basedir}/{CHIC_INDEX_BIN} {input} {params.max_read_length} --kernel=BOWTIE2 --lz-parsing-method=RELZ --max-edit-distance={params.max_edit_distance} --mem={params.max_memory_MB} --threads={threads} --verbose=2"
+	shell:		"chic-index {input} {params.max_read_length} --kernel=BOWTIE2 --lz-parsing-method=RELZ --max-edit-distance={params.max_edit_distance} --mem={params.max_memory_MB} --threads={threads} --verbose=2"
 
 rule std_ref:
 	conda:		"workflow/envs/panvc.yaml"
