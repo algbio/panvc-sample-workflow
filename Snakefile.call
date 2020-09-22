@@ -7,11 +7,9 @@ import re
 
 sys.path.append(f"{workflow.basedir}/pvc_py_tools")
 from pvc_tools import PVC_load_var
-from config import *
 
 
-PANVC_DIR			= "."
-COMBINE_MSA_VCF_BIN	= PANVC_DIR + "/components/combine_msa_vcf"
+COMBINE_MSA_VCF_BIN	= f"{workflow.basedir}/components/combine_msa_vcf"
 
 
 def seq_id():
@@ -61,13 +59,16 @@ rule all:
 rule get_combine_msa_vcf:
 	# Building vcf2multialign on Linux with conda-build is difficult b.c. the build process requires Clang.
 	output:		f"{COMBINE_MSA_VCF_BIN}"
-	script:
+	shell:
+		"""
 		set -e
 		set -x
-		cd f"{PANVC_DIR}/components"
+		mkdir -p {workflow.basedir}/components
+		cd {workflow.basedir}/components
 		wget https://github.com/tsnorri/vcf2multialign/releases/download/v0.6/vcf2multialign-0.6-120ad44-linux-static.tar.gz
 		tar xvf vcf2multialign-0.6-120ad44-linux-static.tar.gz
 		mv vcf2multialign-0.6-120ad44/combine_msa_vcf .
+		"""
 
 rule baseline_link_reference:
 	input:		expand("{index_root}/std_ref.fa", index_root = config["index_root"])
@@ -144,7 +145,7 @@ rule panvc_align_reads:
 		reads_all			= config["reads_all_path"]
 	output:
 		# PanVC uses a rather complex file naming scheme for its outputs, so only one of the files is listed here.
-		mapped_1			= expand("{output_root}/sam_files/{chr1}/mapped_reads_to1.sam.gz", output_root = config["output_root"], chr1 = config["chromosome_list"][0][0])
+		mapped_1			= expand("{output_root}/sam_files/{chr1}/mapped_reads_to1.sam.gz", output_root = config["output_root"], chr1 = config["chromosome_list"][0])
 	params:
 		chromosome_list		= config["chromosome_list"],
 		ploidy				= config["ploidy"],
@@ -158,8 +159,9 @@ rule panvc_align_reads:
 
 rule panvc_sam_to_positions:
 	message:			"Running sam_to_positions"
+	conda:				"workflow/envs/panvc.yaml"
 	input:
-		all_sorted		= expand("{output_root}/sam_files/all_sorted.REF_pg_ref_chr1_1.bam", output_root = config["output_root"]),
+		mapped_1		= expand("{output_root}/sam_files/{chr1}/mapped_reads_to1.sam.gz", output_root = config["output_root"], chr1 = config["chromosome_list"][0]),
 		recombinant_all	= expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
 	output:
 		mapped_reads	= expand("{output_root}/sam_files/{chr_id}/mapped_reads_to{seq}.pos", output_root = config["output_root"], chr_id = config["chromosome_list"], seq = seq_id())
@@ -171,11 +173,11 @@ rule panvc_sam_to_positions:
 		sensibility		= config["sensibility"],
 		n_refs			= config["n_refs"],
 		sam_output_dir	= expand("{output_root}/sam_files", output_root = config["output_root"])
-	conda:				"workflow/envs/panvc.yaml"
 	script:				"workflow/scripts/panvc_sam_to_positions.py"
 
 rule panvc_split_and_sort:
 	message:			"Running split_and_sort"
+	conda:				"workflow/envs/panvc.yaml"
 	input:
 		pos_files		= expand("{output_root}/sam_files/{{chr_id}}/mapped_reads_to{{seq}}.pos", output_root = config["output_root"])
 	output:
@@ -186,17 +188,18 @@ rule panvc_split_and_sort:
 		temp_prefix		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}", output_root = config["output_root"]),
 		msa_len			= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}"),
 		read_len		= lambda wildcards: PVC_load_var("read_len", f"{config['output_root']}/sam_files")
-	shell:				"{SPLIT_AND_SORT_BIN} {input.pos_files} {params.gaps_prefix} {params.temp_prefix} {params.msa_len} {params.read_len}"
+	shell:				"panvc-split-and-sort {input.pos_files} {params.gaps_prefix} {params.temp_prefix} {params.msa_len} {params.read_len}"
 
 rule panvc_pileup:
 	message:			"Doing pileup"
+	conda:				"workflow/envs/panvc.yaml"
 	input:
 		starts_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.starts", output_root = config["output_root"]),
 		ends_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.ends", output_root = config["output_root"]),
 	output:				expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.sums", output_root = config["output_root"])
 	params:
 		tmp_prefix		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}", output_root = config["output_root"])
-	shell:				"{PILEUP_BIN} {params.tmp_prefix}"
+	shell:				"panvc-pileup {params.tmp_prefix}"
 
 rule panvc_pileup_sums:
 	message:	"Generating sum file list"
@@ -211,6 +214,7 @@ rule panvc_pileup_sums:
 
 rule panvc_heaviest_paths:
 	message:	"Determining heaviest paths"
+	conda:		"workflow/envs/panvc.yaml"
 	input:
 		recombinant_all							= expand("{index_root}/recombinant.all.fa", index_root = config["index_root"]),
 		sum_file_list							= expand("{output_root}/sam_files/{{chr_id}}/sum_files.txt", output_root = config["output_root"]),
@@ -223,7 +227,7 @@ rule panvc_heaviest_paths:
 		n_refs									= config["n_refs"],
 		output_root								= config["output_root"],
 		msa_len									= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}")
-	shell:	"{HP_BIN} {input.sum_file_list} {params.index_root}/{wildcards.chr_id} {input.recombinant_all} {wildcards.chr_id} {params.n_chrom} {params.first_chr} {params.n_refs} {params.msa_len} {params.output_root}/adhoc_ref_files/{wildcards.chr_id}/adhoc_reference"
+	shell:	"panvc-heaviest-path {input.sum_file_list} {params.index_root}/{wildcards.chr_id} {input.recombinant_all} {wildcards.chr_id} {params.n_chrom} {params.first_chr} {params.n_refs} {params.msa_len} {params.output_root}/adhoc_ref_files/{wildcards.chr_id}/adhoc_reference"
 
 rule panvc_combine_adhoc_ref:
 	message:	"Combining ad-hoc references"
@@ -261,8 +265,9 @@ rule samtools_sort_aligned:
 	conda:		"workflow/envs/panvc.yaml"
 	input:		expand("{output_root}/{{workflow_path}}/aligned_deduplicated.samtools.bam", output_root = config["output_root"])
 	output:		expand("{output_root}/{{workflow_path}}/sorted-alns2.samtools.bam", output_root = config["output_root"])
+	threads:	workflow.cores
 	params:
-		memory_per_thread						= config["max_memory_MB"] / config["n_threads"] * 1024
+		memory_per_thread						= config["max_memory_MB"] / workflow.cores * 1024
 	threads:	workflow.cores
 	shell:		"samtools sort"
 		" -@ {threads}"
@@ -439,6 +444,7 @@ rule gatk_call_variants:
 	input:
 		reference		= expand("{output_root}/{{workflow_path}}/reference.fa", output_root = config["output_root"]),
 		reference_dict	= expand("{output_root}/{{workflow_path}}/reference.dict", output_root = config["output_root"]),
+		reference_fai	= expand("{output_root}/{{workflow_path}}/reference.fa.fai", output_root = config["output_root"]),
 		aligned_reads	= expand("{output_root}/{{workflow_path}}/sortedfixed.gatk.bam", output_root = config["output_root"])
 	output:				expand("{output_root}/{{workflow_path}}/variants.gatk.vcf", output_root = config["output_root"])
 	resources:
@@ -490,7 +496,7 @@ rule panvc_normalize_variants:
 		variants_relative_to_adhoc_reference	= expand("{output_root}/ext_vc_files/{{chr_id}}/variants.{{variant_caller}}.vcf", output_root = config["output_root"]),
 		original_multialigned_reference			= expand("{index_root}/{{chr_id}}/recombinant.n1.gapped", index_root = config["index_root"]),
 		adhoc_reference							= expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"]),
-		combine_msa_vcf							= f"{COMBINE_MSA_VCF}"
+		combine_msa_vcf							= f"{COMBINE_MSA_VCF_BIN}"
 	output:										expand("{output_root}/ext_vc_files/{{chr_id}}/variants.normalized.{{variant_caller}}.vcf", output_root = config["output_root"])
 	params:
 		chromosome_list							= config["chromosome_list"],
