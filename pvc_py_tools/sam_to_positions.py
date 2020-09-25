@@ -106,17 +106,6 @@ def cigar_to_intervals(output, cigar_string, pattern, start_pos, reference, max_
     return True;
   return False;
 
-def read_fasta_special(file_name, seq_name):
-    fasta_sequences = SeqIO.parse(open(file_name),'fasta')
-    for curr_fasta in fasta_sequences:
-        name, sequence = curr_fasta.id, str(curr_fasta.seq)
-        if (name == seq_name):
-            # print >> sys.stderr, 'bingo'
-            return sequence
-        #else:
-        #    print >> sys.stderr, 'nope: '+name+" != "+seq_name
-
-
 def sam_process(input_file_name, output_obj, reference, max_error):
   f = gzip.open(input_file_name);
   not_maped= 0;
