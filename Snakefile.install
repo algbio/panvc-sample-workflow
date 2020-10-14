@@ -4,3 +4,7 @@
 rule conda_environment:
 	conda:					"workflow/envs/panvc.yaml"
 	shell:					"echo 'Done.'"
+
+rule conda_environment_gatk:
+	conda:					"workflow/envs/panvc-gatk.yaml"
+	shell:					"echo 'Done.'"

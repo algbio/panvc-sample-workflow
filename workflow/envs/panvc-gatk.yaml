@@ -1,0 +1,7 @@
+channels:
+- tsnorri
+- anaconda
+- bioconda
+- conda-forge
+dependencies:
+- gatk4=4.1.8.1

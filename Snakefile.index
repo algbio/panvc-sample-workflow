@@ -48,6 +48,7 @@ rule a2m_prepare:
 		n_refs				= expand("{index_root}/{{chr_id}}/n_refs.txt", index_root = config["index_root"]),
 		msa_len				= expand("{index_root}/{{chr_id}}/msa_len.txt", index_root = config["index_root"]),
 		gapped_recombinants	= expand("{index_root}/{{chr_id}}/recombinant.n{seq_idx}.gapped", index_root = config["index_root"], seq_idx = REF_INDICES)
+	benchmark:				f"{config['benchmark_dir']}/a2m_prepare/{{chr_id}}"
 	script:					"workflow/scripts/panvc_a2m_prepare.py"
 
 rule all_sequences_file:
@@ -58,6 +59,7 @@ rule all_sequences_file:
 		msa_len				= expand("{index_root}/{chr_id}/msa_len.txt", index_root = config["index_root"], chr_id = CHR_NAMES),
 		gapped_recombinants	= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gapped", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES)
 	output:					expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
+	benchmark:				f"{config['benchmark_dir']}/all_sequences_file"
 	run:
 		with open(f"{output[0]}", "x") as dst:
 			for curr_ref in range(1, 1 + config["n_refs"]):
@@ -84,6 +86,7 @@ rule gap_positions:
 	output:
 		len_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.len", index_root = config["index_root"]),
 		sp_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.sp", index_root = config["index_root"])
+	benchmark:				f"{config['benchmark_dir']}/gap_positions/{{chr_id}}-seq{{seq_idx}}"
 	shell:					"panvc-store-gaps {input.gapped_recombinants} {params.gap_pos_prefix}"
 
 rule chic_index:
@@ -92,11 +95,13 @@ rule chic_index:
 	threads:	workflow.cores
 	input:		expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
 	output:		expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
+	resources:
+		mem_mb				= config["max_memory_MB"]
 	params:
 		max_read_length		= config["max_read_length"],
 		max_edit_distance	= config["max_edit_distance"],
-		max_memory_MB		= config["max_memory_MB"]
-	shell:		"chic-index {input} {params.max_read_length} --kernel=BOWTIE2 --lz-parsing-method=RELZ --max-edit-distance={params.max_edit_distance} --mem={params.max_memory_MB} --threads={threads} --verbose=2"
+	benchmark:				f"{config['benchmark_dir']}/chic_index"
+	shell:		"chic-index {input} {params.max_read_length} --kernel=BOWTIE2 --lz-parsing-method=RELZ --max-edit-distance={params.max_edit_distance} --mem={resources.mem_mb} --threads={threads} --verbose=2"
 
 rule std_ref:
 	conda:		"workflow/envs/panvc.yaml"
