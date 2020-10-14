@@ -68,5 +68,5 @@ The generated index may be used to align a set of short reads and call variants 
  2. (Optional) Generate merged reads if the same reads are aligned multiple times. This is done as part of the variant calling process but can also be done beforehand.
     1. Add `--store-merged-reads-with-originals` to the parameters of `generate_snakemake_config_for_call.py`. This causes the merged reads to be stored in the same directory as the original reads instead of using the output directory.
     2. Run Snakemake with the generated configuration and use `panvc_generate_reads_all` as the target name, e.g. `snakemake --configfile config-call.yaml --cores 1 --printshellcmds --use-conda --conda-prefix /path/to/conda/environment -- panvc_generate_reads_all`. Using more than one core may speed up the process in case the reads are compressed.
- 3. Run Snakemake with the configuration file with e.g. `snakemake --configfile config-call.yaml --cores 1 --printshellcmds
+ 3. Run Snakemake with the configuration file with e.g. `snakemake --configfile config-call.yaml --cores 16 --printshellcmds
  --use-conda --conda-prefix /path/to/conda/environment --resources mem_mb=200000`
