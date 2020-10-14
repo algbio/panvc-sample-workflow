@@ -7,7 +7,7 @@ import sys
 import tempfile
 import yaml
 
-CURRENT_PATH = os.path.dirname(__file__)
+CURRENT_PATH = os.path.dirname(__file__) or "."
 sys.path.append(f"{CURRENT_PATH}/pvc_py_tools")
 from pvc_tools import PVC_load_var
 
@@ -87,6 +87,7 @@ def write_config(
 def main():
 	parser = argparse.ArgumentParser(description = "Align reads to a PanVC-indexed pan-genome.")
 	parser.add_argument("--pgindex-dir", required = True, help = "PanVC index directory")
+	parser.add_argument("--benchmark-dir", default = "benchmark-call", help = "Variant calling benchmark directory")
 	parser.add_argument("-r1", "--reads-file-1", required = True, help = "reads file 1")
 	parser.add_argument("-r2", "--reads-file-2", required = True, help = "reads file 2")
 	parser.add_argument("-o", "--output-dir", required = True, help = "Output directory for variant calling results")
@@ -99,7 +100,7 @@ def main():
 	parser.add_argument("-c", "--output-config", type = str, default = "panvc-config-align.yaml", help = "Configuration file output path")
 	
 	args = parser.parse_args()
-	write_config(args.pgindex_dir, args.output_dir, args.reads_file_1, args.reads_file_2, args.vc_method, args.ploidy, args.ploidy_file, args.max_memory_MB, args.store_merged_reads_with_originals, args.baseline_vc)
+	write_config(args.pgindex_dir, args.output_dir, args.reads_file_1, args.reads_file_2, args.vc_method, args.ploidy, args.ploidy_file, args.max_memory_MB, args.store_merged_reads_with_originals, args.baseline_vc, benchmark_dir = args.benchmark_dir)
 	
 if __name__ == "__main__":
 	main()

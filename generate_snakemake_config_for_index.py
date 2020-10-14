@@ -53,13 +53,14 @@ def main():
 	parser = argparse.ArgumentParser(description = "Align reads to a PanVC-indexed pan-genome.")
 	parser.add_argument("--input-a2m", nargs = "+", help = "Input A2M files. File name without suffix will be used as the chromosome name.")
 	parser.add_argument("--pgindex-dir", required = True, help = "PanVC index directory")
+	parser.add_argument("--benchmark-dir", default = "benchmark-index", help = "Indexing benchmark directory")
 	parser.add_argument("-c", "--output-config", type = str, default = "panvc-config-index.yaml", help = "Configuration file output path")
 	parser.add_argument("-d", "--max-edit-distance", type = int, default = 10, help = "Maximum edit distance allowed by the index")
 	parser.add_argument("-l", "--max-read-length", type = int, default = 120, help = "Maximum read length that will be possible to align using the index")
 	parser.add_argument("-m", "--max-memory-MB", type = int, default = 8192, help = "Amount of RAM to use with most of the tools (MB)")
 
 	args = parser.parse_args()
-	write_config(args.output_config, args.pgindex_dir, args.input_a2m, args.max_edit_distance, args.max_read_length, args.max_memory_MB)
+	write_config(args.output_config, args.pgindex_dir, args.input_a2m, args.max_edit_distance, args.max_read_length, args.max_memory_MB, benchmark_dir = args.benchmark_dir)
 
 if __name__ == "__main__":
 	main()
