@@ -60,7 +60,7 @@ An index may be generated from a set of A2M files as follows. The amount of memo
  1. Use `generate_snakemake_config_for_index.py` to generate a configuration file for Snakemake. Here, the maximum read length and maximum edit distance for each read may be specified. Please use `python3 generate_snakemake_config_for_index.py --help` for listing all available options. For instance, to prepare an index for two chromosomes, `chr1` and `chr2`, with maximum read length of 105 and maximum edit distance of 10, the following command could be used: `python3 generate_snakemake_config_for_index.py --input-a2m chr1.a2m chr2.a2m --pgindex-dir index-output --output-config config-index.yaml --max-edit-distance 10 --max-read-length 105 --max-memory-MB 20000`. (The script may also be loaded as a module to be used from Python.)
  2. Run Snakemake with the configuration file with e.g. `snakemake --configfile config-index.yaml --snakefile Snakefile.index --cores 16 --printshellcmds --use-conda --conda-prefix /path/to/conda/environment --resources mem_mb=20000`
 
-### Running the short read alignment workflow
+### Running the short read alignment and variant calling workflow
 
 The generated index may be used to align a set of short reads and call variants as follows. As in the previous step, the amount of memory required depends on the length and complexity of the inputs.
 
