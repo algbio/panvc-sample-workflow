@@ -1,7 +1,7 @@
 PanVC Sample Workflow
 =====================
 
-This is a workflow for variant calling from short reads that utilizes [PanVC](https://gitlab.com/dvalenzu/PanVC/-/tree/PanVC-2.0-rc-tsnorri).
+This is a workflow for variant calling using short reads that utilizes [PanVC](https://gitlab.com/dvalenzu/PanVC/-/tree/PanVC-2.0-rc-tsnorri).
 
 
 Requirements
