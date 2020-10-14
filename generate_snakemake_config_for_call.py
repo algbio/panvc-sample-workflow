@@ -23,7 +23,9 @@ def write_config(
 	ploidy_file,
 	max_memory_MB,
 	should_store_merged_reads_with_originals,
-	should_run_baseline_vc
+	should_run_baseline_vc,
+	benchmark_dir = "benchmark-call",
+	tempdir = tempfile.gettempdir()
 ):
 	with open(output_config, "x") as f:
 		config = {}
@@ -76,7 +78,7 @@ def write_config(
 		if os.path.exists(config["reads_all_path"]):
 			print(f"NOTE: {config['reads_all_path']} already exists.", file = sys.stderr)
 		
-		tempdir = tempfile.gettempdir()
+		config["benchmark_dir"] = benchmark_dir
 		config["tempdir"] = tempdir
 		
 		yaml.dump(config, f)

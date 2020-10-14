@@ -31,7 +31,7 @@ def chr_names(paths):
 		yield (chr_name, path)
 
 
-def write_config(config_output_path, pgindex_dir, input_a2m_paths, max_edit_distance, max_read_length, max_memory_MB, a2m_path_prefix = "", tempdir = tempfile.gettempdir()):
+def write_config(config_output_path, pgindex_dir, input_a2m_paths, max_edit_distance, max_read_length, max_memory_MB, a2m_path_prefix = "", benchmark_dir = "benchmark-index", tempdir = tempfile.gettempdir()):
 	with open(config_output_path, "x") as f:
 		config = {}
 		
@@ -43,6 +43,7 @@ def write_config(config_output_path, pgindex_dir, input_a2m_paths, max_edit_dist
 		config["max_read_length"] = max_read_length
 		
 		config["max_memory_MB"] = max_memory_MB
+		config["benchmark_dir"] = benchmark_dir
 		config["tempdir"] = tempdir
 		
 		yaml.dump(config, f)
