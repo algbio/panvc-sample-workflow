@@ -1,7 +1,7 @@
 PanVC Sample Workflow
 =====================
 
-This is a workflow for variant calling using short reads that utilizes [PanVC](https://gitlab.com/dvalenzu/PanVC/-/tree/PanVC-2.0-rc-tsnorri).
+This is a workflow for variant calling using short reads that utilizes [PanVC](https://gitlab.com/dvalenzu/PanVC/-/tree/PanVC-2.0-rc-tsnorri). The workflow uses an index generated from a multiple sequence alignment. The sequences may be e.g. founder sequences generated from the variants of a group of donors. Using the predicted DNA sequences of the donors is also possible.
 
 
 Requirements
