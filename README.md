@@ -49,7 +49,7 @@ The required tools will be installed automatically when running Snakemake for ei
 
 Indexing input for PanVC consists of multiple alignments of sequences for one or more chromosomes. For each chromosome, the same number of input sequences must be used. Either predicted sequences of a cohort of donors or founder sequences may be used.
 
-PanVC accepts (a subset of) A2M formatted multiple alignments as its inputs. In particular, the first sequence needs to be the reference sequences and only uppercase characters and dashes may be used in the sequences.
+PanVC accepts (a subset of) A2M formatted multiple alignments as its inputs. In particular, the first sequence of each A2M input needs to be the reference sequence for the corresponding chromosome. Only uppercase characters and dashes may be used in the sequences.
 
 Suitable multiple alignments of either predicted or founder sequences may be generated from VCF files with [vcf2multialign](https://github.com/tsnorri/vcf2multialign).
 
