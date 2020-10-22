@@ -1,9 +1,6 @@
 # Copyright (c) Tuukka Norri 2020
 # Licenced under the MIT licence.
 
-COMBINE_MSA_VCF_BIN	= f"{workflow.basedir}/components/combine_msa_vcf"
-
-
 rule conda_environment:
 	conda:					"workflow/envs/panvc.yaml"
 	shell:					"echo 'Done.'"
@@ -11,18 +8,3 @@ rule conda_environment:
 rule conda_environment_gatk:
 	conda:					"workflow/envs/panvc-gatk.yaml"
 	shell:					"echo 'Done.'"
-
-# FIXME: copied from Snakefile.call
-rule get_combine_msa_vcf:
-	# Building vcf2multialign on Linux with conda-build is difficult b.c. the build process requires Clang.
-	output:		f"{COMBINE_MSA_VCF_BIN}"
-	shell:
-		"""
-		set -e
-		set -x
-		mkdir -p {workflow.basedir}/components
-		cd {workflow.basedir}/components
-		wget https://github.com/tsnorri/vcf2multialign/releases/download/v0.6/vcf2multialign-0.6-120ad44-linux-static.tar.gz
-		tar xvf vcf2multialign-0.6-120ad44-linux-static.tar.gz
-		mv vcf2multialign-0.6-120ad44/combine_msa_vcf .
-		"""

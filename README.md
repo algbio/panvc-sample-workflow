@@ -7,7 +7,7 @@ This is a workflow for variant calling using short reads that utilizes [PanVC](h
 Requirements
 ------------
  * Linux on x86-64 for using pre-built binaries
- * Python 3
+ * Python 3.8
  * [Snakemake](https://snakemake.readthedocs.io/)
  * [Conda](https://conda.io/)
 
@@ -16,15 +16,19 @@ Installing
 ----------
 Snakemake is used to run the workflow. To simplify the installation of the tools that are used as part of the workflow, Conda environments (in `workflow/envs`) are used. To set up the environment, Snakemake can run Conda automatically.
 
-One tool used by PanVC, `combine_msa_vcf` is currently not available via Conda. To install it, Snakemake will download a distribution as part of variant calling and extract it to a subdirectory of this repository.
+### Installing the required tools with Snakemake
 
+The required tools will be installed automatically when running Snakemake for either indexing or variant calling. However, to e.g. install the tools only once or run multiple instances of Snakemake in parallel, the tools may be installed to e.g. `/path/to/conda/environment` as follows:
+
+ 1. Run `snakemake --snakefile Snakefile.install --cores 1 --printshellcmds --use-conda --conda-prefix /path/to/conda/environment conda_environment`
+ 2. Run `snakemake --snakefile Snakefile.install --cores 1 --printshellcmds --use-conda --conda-prefix /path/to/conda/environment conda_environment_gatk`
 
 ### Installing on platforms other than Linux on x86-64
 
-Currently, pre-built binaries of PanVC and `combine_msa_vcf` are only available for Linux on x86-64. To run the workflow on other architectures, tools from the following repositories need to be installed:
+Currently, pre-built binaries are only available for Linux on x86-64. To run the workflow on other architectures, tools from the following repositories need to be installed:
 
  * [PanVC](https://gitlab.com/dvalenzu/PanVC/-/tree/PanVC-2.0-rc-tsnorri)
- * `combine_msa_vcf` from [vcf2multialign](https://github.com/tsnorri/vcf2multialign)
+ * [vcf2multialign](https://github.com/tsnorri/vcf2multialign)
 
 
 Running
@@ -32,18 +36,9 @@ Running
 
 Running the workflow involves the following steps:
 
- 1. Install the required tools with Conda
- 2. Generate indexing input for PanVC
- 3. Prepare an index
- 4. Run the short read alignment and variant calling workflow
-
-### Installing the required tools with Conda
-
-The required tools will be installed automatically when running Snakemake for either indexing or variant calling. However, to e.g. run multiple instances of Snakemake in parallel, the tools may be installed to e.g. `/path/to/conda/environment` as follows:
-
- 1. Run `snakemake --snakefile Snakefile.install --cores 1 --printshellcmds --use-conda --conda-prefix /path/to/conda/environment conda_environment`
- 2. Run `snakemake --snakefile Snakefile.install --cores 1 --printshellcmds --use-conda --conda-prefix /path/to/conda/environment conda_environment_gatk`
- 3. Run `snakemake --snakefile Snakefile.install --cores 1 --printshellcmds get_combine_msa_vcf`
+ 1. Generate indexing input for PanVC
+ 2. Prepare an index
+ 3. Run the short read alignment and variant calling workflow
 
 ### Generating indexing input
 

@@ -9,9 +9,6 @@ sys.path.append(f"{workflow.basedir}/pvc_py_tools")
 from pvc_tools import PVC_load_var
 
 
-COMBINE_MSA_VCF_BIN	= f"{workflow.basedir}/components/combine_msa_vcf"
-
-
 def seq_id():
 	global config
 	return range(1, 1 + config["n_refs"])
@@ -55,20 +52,6 @@ rule all:
 		print("Done. The variants have been written to the following files:")
 		for path in input:
 			print(path)
-
-rule get_combine_msa_vcf:
-	# Building vcf2multialign on Linux with conda-build is difficult b.c. the build process requires Clang.
-	output:		f"{COMBINE_MSA_VCF_BIN}"
-	shell:
-		"""
-		set -e
-		set -x
-		mkdir -p {workflow.basedir}/components
-		cd {workflow.basedir}/components
-		wget https://github.com/tsnorri/vcf2multialign/releases/download/v0.6/vcf2multialign-0.6-120ad44-linux-static.tar.gz
-		tar xvf vcf2multialign-0.6-120ad44-linux-static.tar.gz
-		mv vcf2multialign-0.6-120ad44/combine_msa_vcf .
-		"""
 
 rule baseline_link_reference:
 	input:		expand("{index_root}/std_ref.fa", index_root = config["index_root"])
@@ -549,18 +532,18 @@ rule panvc_split_adhoc_relative_variants_by_chromosome:
 
 rule panvc_normalize_variants:
 	message:									"Normalizing variants"
+	conda:										"workflow/envs/panvc.yaml"
 	input:
 		variants_relative_to_adhoc_reference	= expand("{output_root}/ext_vc/{{chr_id}}/variants.{{variant_caller}}.vcf", output_root = config["output_root"]),
 		original_multialigned_reference			= expand("{index_root}/{{chr_id}}/recombinant.n1.gapped", index_root = config["index_root"]),
-		adhoc_reference							= expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"]),
-		combine_msa_vcf							= f"{COMBINE_MSA_VCF_BIN}"
+		adhoc_reference							= expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"])
 	output:										expand("{output_root}/ext_vc/{{chr_id}}/variants.normalized.{{variant_caller}}.vcf", output_root = config["output_root"])
 	params:
 		chromosome_list							= config["chromosome_list"],
 		index_root								= config["index_root"],
 		ploidy									= config["ploidy"]
 	benchmark:									f"{config['benchmark_dir']}/panvc_normalize_variants/{{chr_id}}-{{variant_caller}}"
-	shell:										"{COMBINE_MSA_VCF_BIN} --ref={input.original_multialigned_reference} --alt={input.adhoc_reference} --variants={input.variants_relative_to_adhoc_reference} --output-chr={params.chromosome_list} --ploidy={params.ploidy} > {output}"
+	shell:										"combine_msa_vcf --ref={input.original_multialigned_reference} --alt={input.adhoc_reference} --variants={input.variants_relative_to_adhoc_reference} --output-chr={params.chromosome_list} --ploidy={params.ploidy} > {output}"
 
 rule panvc_concatenate_variants:
 	message:				"Combining VCF files"

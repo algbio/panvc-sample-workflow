@@ -13,3 +13,4 @@ dependencies:
 - setuptools>=49.6.0
 - perl-vcftools-vcf=0.1.16
 - panvc=2.0_rc=0
+- vcf2multialign=v0.6.1=64_gcaa4107
