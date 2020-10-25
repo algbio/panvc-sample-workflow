@@ -100,7 +100,20 @@ def main():
 	parser.add_argument("-c", "--output-config", type = str, default = "panvc-config-align.yaml", help = "Configuration file output path")
 	
 	args = parser.parse_args()
-	write_config(args.pgindex_dir, args.output_dir, args.reads_file_1, args.reads_file_2, args.vc_method, args.ploidy, args.ploidy_file, args.max_memory_MB, args.store_merged_reads_with_originals, args.baseline_vc, benchmark_dir = args.benchmark_dir)
+	write_config(
+		args.output_config,
+		args.pgindex_dir,
+		args.output_dir,
+		args.reads_file_1,
+		args.reads_file_2,
+		args.vc_method,
+		args.ploidy,
+		args.ploidy_file,
+		args.max_memory_MB,
+		args.store_merged_reads_with_originals,
+		args.baseline_vc,
+		benchmark_dir = args.benchmark_dir
+	)
 	
 if __name__ == "__main__":
 	main()
