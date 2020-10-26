@@ -43,11 +43,12 @@ def run_panvc_aligner(reads_all, pgindex_dir, chr_list, ploidy, n_refs, max_read
 
     for chr_id in chr_list:
         for curr_ref in range(1, n_refs + 1):
-            input_bam = f"{output_folder}/all_sorted.REF_{chr_id}_{curr_ref}.bam"
+            input_bam = f"{output_folder}/all_sorted.REF_pg_ref_{chr_id}_{curr_ref}.bam"
             output_sam = f"{output_folder}/{chr_id}/mapped_reads_to{curr_ref}.sam.gz"
-            if not os.path.isfile(bam_file):
-                assert not os.path.exists(sam_file)
-                Path(sam_file).touch()
+            if not os.path.isfile(input_bam):
+                sys.stderr.write(f"{input_bam} does not exist; creating an empty file for {chr_id}:{curr_ref}.\n")
+                assert not os.path.exists(output_sam)
+                Path(output_sam).touch()
             else:
                 command = f"samtools view -@ {n_threads} {input_bam} | gzip > {output_sam}"
                 call_or_die(command)
