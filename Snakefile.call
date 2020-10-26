@@ -2,6 +2,7 @@
 # Licenced under the MIT licence.
 
 import itertools
+import math
 import sys
 import re
 
@@ -263,7 +264,7 @@ rule samtools_sort_aligned:
 	output:		expand("{output_root}/{{workflow_name}}/sorted-alns2.samtools.bam", output_root = config["output_root"])
 	threads:	workflow.cores
 	params:
-		memory_per_thread						= config["max_memory_MB"] / workflow.cores * 1024
+		memory_per_thread						= math.floor(config["max_memory_MB"] / workflow.cores * 1024)
 	threads:	workflow.cores
 	benchmark:	f"{config['benchmark_dir']}/samtools_sort_aligned/{{workflow_name}}"
 	shell:		"samtools sort"
