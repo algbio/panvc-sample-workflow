@@ -46,9 +46,9 @@ def run_panvc_aligner(reads_all, pgindex_dir, chr_list, ploidy, n_refs, max_read
     Path(f"{output_folder}/chic_aligner_did_finish").touch()
 
 
-def convert_panvc_output(chr_list, n_threads, output_folder):
+def convert_panvc_output(chr_list, n_refs, n_threads, output_folder):
     for chr_id in chr_list:
-        Path(f"{output_folder}/{chr_id}").mkdir(parents = True, exists_ok = True)
+        Path(f"{output_folder}/{chr_id}").mkdir(parents = True, exist_ok = True)
         for curr_ref in range(1, n_refs + 1):
             input_bam = f"{output_folder}/all_sorted.REF_pg_ref_{chr_id}_{curr_ref}.bam"
             output_sam = f"{output_folder}/{chr_id}/mapped_reads_to{curr_ref}.sam.gz"

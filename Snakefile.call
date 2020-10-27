@@ -152,6 +152,7 @@ rule panvc_convert_alignments:
 	output:					expand("{output_root}/sam_files/{chrom}/mapped_reads_to{seq_id}.sam.gz", output_root = config["output_root"], chrom = config["chromosome_list"], seq_id = seq_id())
 	params:
 		chromosome_list     = config["chromosome_list"],
+		n_refs				= config["n_refs"],
 		output_root			= config["output_root"]
 	threads:				workflow.cores
 	benchmark:				f"{config['benchmark_dir']}/panvc_convert_alignments"
