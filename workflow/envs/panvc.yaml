@@ -1,8 +1,7 @@
 channels:
 - tsnorri
-- anaconda
-- bioconda
 - conda-forge
+- bioconda
 dependencies:
 - bcftools=1.9
 - biopython
@@ -12,5 +11,5 @@ dependencies:
 - samtools=1.9
 - setuptools>=49.6.0
 - perl-vcftools-vcf=0.1.16
-- panvc=v2.0_rc1=0_g6ed02fb
+- panvc=v2.0_rc1=6_g1000b28
 - vcf2multialign=v0.6.1=64_gcaa4107
