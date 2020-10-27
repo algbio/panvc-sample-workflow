@@ -30,6 +30,7 @@ def run_panvc_aligner(reads_all, pgindex_dir, chr_list, ploidy, n_refs, max_read
     align_cmd = f"chic-align --secondary-report=NONE --threads={n_threads} --kernel-options=--n-ceil=C,{max_edit_distance},0 --max-ed={max_edit_distance} --split-output-by-reference --output-prefix={output_folder} --samtools-path={samtools_path} --no-samtools-threads --verbose=3 {pgindex_dir}/recombinant.all.fa {reads_all}"
     call_or_die(align_cmd)
 
+    # FIXME: create a new workflow step for this.
     # FIXME: add memory limit to sort.
     # FIXME: glob is not the best approach. Use PVC_sequence_num_to_name instead? (or replace with sample indices)
     unsorted_bams = glob.glob(f"{output_folder}/all_mapped.REF_*.bam")
@@ -41,13 +42,20 @@ def run_panvc_aligner(reads_all, pgindex_dir, chr_list, ploidy, n_refs, max_read
         call_or_die(sort_command)
         os.remove(unsorted_bam)
 
+    # FIXME: CHIC outputs a BAM file for only each reference to which reads were aligned, but Snakemake expects a predetermined list of outputs. The following file is a marker but creating the remaining files would be an option.
+    Path(f"{output_folder}/chic_aligner_did_finish").touch()
+
+
+def convert_panvc_output(chr_list, n_threads, output_folder):
     for chr_id in chr_list:
+        Path(f"{output_folder}/{chr_id}").mkdir(parents = True, exists_ok = True)
         for curr_ref in range(1, n_refs + 1):
             input_bam = f"{output_folder}/all_sorted.REF_pg_ref_{chr_id}_{curr_ref}.bam"
             output_sam = f"{output_folder}/{chr_id}/mapped_reads_to{curr_ref}.sam.gz"
             if not os.path.isfile(input_bam):
                 sys.stderr.write(f"{input_bam} does not exist; creating an empty file for {chr_id}:{curr_ref}.\n")
                 assert not os.path.exists(output_sam)
+                # FIXME: this does not generate a valid gzip archive.
                 Path(output_sam).touch()
             else:
                 command = f"samtools view -@ {n_threads} {input_bam} | gzip > {output_sam}"
