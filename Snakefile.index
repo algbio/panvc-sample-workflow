@@ -1,6 +1,9 @@
 # Copyright (c) Tuukka Norri 2020
 # Licenced under the MIT licence.
 
+import functools
+
+
 CHR_NAMES = [chr_name for chr_name, _ in config["input_a2m"]]
 REF_INDICES = [1 + x for x in range(config["n_refs"])]
 
@@ -43,6 +46,7 @@ rule chr_list_file:
 
 rule a2m_prepare:
 	conda:					"workflow/envs/panvc.yaml"
+	message:				"Handling A2M input"
 	output:	
 		names_plain			= expand("{index_root}/{{chr_id}}/names.plain", index_root = config["index_root"]),
 		n_refs				= expand("{index_root}/{{chr_id}}/n_refs.txt", index_root = config["index_root"]),
@@ -53,6 +57,7 @@ rule a2m_prepare:
 
 rule all_sequences_file:
 	# Actually more outputs.
+	message:				"Combining input"
 	input:
 		names_plain			= expand("{index_root}/{chr_id}/names.plain", index_root = config["index_root"], chr_id = CHR_NAMES),
 		n_refs				= expand("{index_root}/{chr_id}/n_refs.txt", index_root = config["index_root"], chr_id = CHR_NAMES),
@@ -73,12 +78,14 @@ rule all_sequences_file:
 					dst.write("\n")
 					
 					with open(sequence_gapped_path, "r") as src:
-						for c in src:	# Includes terminating newline.
+						read_ch_fn = functools.partial(src.read, 1)
+						for c in iter(read_ch_fn, ""):
 							if not ("-" == c):
 								dst.write(c)
 
 rule gap_positions:
 	conda:					"workflow/envs/panvc.yaml"
+	message:				"Storing gap positions"
 	input:
 		gapped_recombinants	= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gapped", index_root = config["index_root"])
 	params:
@@ -92,6 +99,7 @@ rule gap_positions:
 rule chic_index:
 	# Actually more outputs.
 	conda:		"workflow/envs/panvc.yaml"
+	message:	"Indexing with CHIC"
 	threads:	workflow.cores
 	input:		expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
 	output:		expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
@@ -104,6 +112,7 @@ rule chic_index:
 	shell:		"chic-index {input} {params.max_read_length} --kernel=BOWTIE2 --lz-parsing-method=RELZ --max-edit-distance={params.max_edit_distance} --mem={resources.mem_mb} --threads={threads} --verbose=2"
 
 rule std_ref:
+	message:	"Outputting standard reference"
 	conda:		"workflow/envs/panvc.yaml"
 	output:		expand("{index_root}/std_ref.fa", index_root = config["index_root"])
 	script:		"workflow/scripts/panvc_a2m_to_std_ref.py"
