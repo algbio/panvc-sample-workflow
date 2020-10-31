@@ -81,8 +81,12 @@ rule gatk_index_ref:
 	conda:			"workflow/envs/panvc-gatk.yaml"
 	input:			expand("{output_root}/{{workflow_name}}/reference.fa", output_root = config["output_root"])
 	output:			expand("{output_root}/{{workflow_name}}/reference.dict", output_root = config["output_root"])
+	params:
+		tempdir		= config["tempdir"]
 	benchmark:		f"{config['benchmark_dir']}/gatk_index_ref/{{workflow_name}}"
-	shell:			"gatk CreateSequenceDictionary --REFERENCE {input} --OUTPUT {output}"
+	shell:			"gatk"
+		" --java-options '-Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
+		" CreateSequenceDictionary --REFERENCE {input} --OUTPUT {output}"
 
 rule mark_duplicates:
 	message:		"Marking duplicate reads"
