@@ -222,10 +222,10 @@ rule panvc_pileup_sums:
 				f.write("\n")
 
 rule panvc_heaviest_paths:
-	message:	"Determining heaviest paths"
+	message:	"Outputting ad-hoc reference"
 	conda:		"workflow/envs/panvc.yaml"
 	input:
-		recombinant_all							= expand("{index_root}/recombinant.all.fa", index_root = config["index_root"]),
+		chrom_dir								= expand("{index_root}/{{chr_id}}", index_root = config["index_root"]),
 		sum_file_list							= expand("{output_root}/sam_files/{{chr_id}}/sum_files.txt", output_root = config["output_root"]),
 	output:		expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"])
 	params:
@@ -237,7 +237,7 @@ rule panvc_heaviest_paths:
 		output_root								= config["output_root"],
 		msa_len									= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}")
 	benchmark:	f"{config['benchmark_dir']}/panvc_heaviest_paths/{{chr_id}}"
-	shell:	"panvc-heaviest-path {input.sum_file_list} {params.index_root}/{wildcards.chr_id} {input.recombinant_all} {wildcards.chr_id} {params.n_chrom} {params.first_chr} {params.n_refs} {params.msa_len} {params.output_root}/adhoc_ref_files/{wildcards.chr_id}/adhoc_reference"
+	shell:	"panvc-heaviest-path --weights-file-list={input.sum_file_list} --chromosome-dir={input.chrom_dir} > {output}"
 
 rule panvc_combine_adhoc_ref:
 	message:	"Combining ad-hoc references"
