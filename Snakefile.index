@@ -58,6 +58,7 @@ rule a2m_prepare:
 rule all_sequences_file:
 	# Actually more outputs.
 	message:				"Combining input"
+	priority:				50
 	input:
 		names_plain			= expand("{index_root}/{chr_id}/names.plain", index_root = config["index_root"], chr_id = CHR_NAMES),
 		n_refs				= expand("{index_root}/{chr_id}/n_refs.txt", index_root = config["index_root"], chr_id = CHR_NAMES),
@@ -66,22 +67,13 @@ rule all_sequences_file:
 	output:					expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
 	benchmark:				f"{config['benchmark_dir']}/all_sequences_file"
 	run:
-		with open(f"{output[0]}", "x") as dst:
-			for curr_ref in range(1, 1 + config["n_refs"]):
-				for chr_id, _ in config["input_a2m"]:
-					src_dir = f"{config['index_root']}/{chr_id}"
-					sequence_gapped_path = f"{src_dir}/recombinant.n{curr_ref}.gapped"
-					ref_name = f"pg_ref_{chr_id}_{curr_ref}"
-					
-					dst.write(">")
-					dst.write(ref_name)
-					dst.write("\n")
-					
-					with open(sequence_gapped_path, "r") as src:
-						read_ch_fn = functools.partial(src.read, 1)
-						for c in iter(read_ch_fn, ""):
-							if not ("-" == c):
-								dst.write(c)
+		for curr_ref in range(1, 1 + config["n_refs"]):
+			for chr_id, _ in config["input_a2m"]:
+				src_dir = f"{config['index_root']}/{chr_id}"
+				sequence_gapped_path = f"{src_dir}/recombinant.n{curr_ref}.gapped"
+				ref_name = f"pg_ref_{chr_id}_{curr_ref}"
+				shell(f"echo '>{ref_name}' >> {output[0]}")
+				shell(f"tr -d '-' < {sequence_gapped_path} >> {output[0]}")
 
 rule gap_positions:
 	conda:					"workflow/envs/panvc.yaml"
@@ -101,6 +93,7 @@ rule chic_index:
 	conda:		"workflow/envs/panvc.yaml"
 	message:	"Indexing with CHIC"
 	threads:	workflow.cores
+	priority:	50
 	input:		expand("{index_root}/recombinant.all.fa", index_root = config["index_root"])
 	output:		expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
 	resources:
