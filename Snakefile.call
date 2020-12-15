@@ -181,34 +181,18 @@ rule panvc_sam_to_positions:
 	benchmark:			f"{config['benchmark_dir']}/panvc_sam_to_positions"
 	script:				"workflow/scripts/panvc_sam_to_positions.py"
 
-rule panvc_split_and_sort:
-	message:			"Running split_and_sort"
-	conda:				"workflow/envs/panvc.yaml"
-	input:
-		pos_files		= expand("{output_root}/sam_files/{{chr_id}}/mapped_reads_to{{seq}}.pos", output_root = config["output_root"])
-	output:
-		starts_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.starts", output_root = config["output_root"]),
-		ends_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.ends", output_root = config["output_root"])
-	params:
-		gaps_prefix		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq}}.gaps", index_root = config["index_root"]),
-		temp_prefix		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}", output_root = config["output_root"]),
-		msa_len			= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}"),
-		read_len		= lambda wildcards: PVC_load_var("read_len", f"{config['output_root']}/sam_files")
-	benchmark:			f"{config['benchmark_dir']}/panvc_split_and_sort/{{chr_id}}-seq{{seq}}"
-	shell:				"panvc-split-and-sort {input.pos_files} {params.gaps_prefix} {params.temp_prefix} {params.msa_len} {params.read_len}"
-
 rule panvc_pileup:
 	message:			"Doing pileup"
 	conda:				"workflow/envs/panvc.yaml"
 	input:
-		starts_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.starts", output_root = config["output_root"]),
-		ends_file		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.ends", output_root = config["output_root"]),
+		pos_file		= expand("{output_root}/sam_files/{{chr_id}}/mapped_reads_to{{seq}}.pos", output_root = config["output_root"])
 	output:				expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.sums", output_root = config["output_root"])
 	params:
-		tmp_prefix		= expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}", output_root = config["output_root"])
+		gaps_prefix		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq}}.gaps", index_root = config["index_root"]),
+		msa_len			= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}")
 	benchmark:			f"{config['benchmark_dir']}/panvc_pileup/{{chr_id}}-seq{{seq}}"
-	shell:				"panvc-pileup {params.tmp_prefix}"
-
+	shell:				"panvc-pileup --msa-length={params.msa_len} --intervals-path={input.pos_file} --gaps-prefix={params.gaps_prefix} > {output}"
+		
 rule panvc_pileup_sums:
 	message:	"Generating sum file list"
 	input:		expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{seq}.sums", output_root = config["output_root"], seq = seq_id())

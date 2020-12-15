@@ -11,5 +11,5 @@ dependencies:
 - samtools=1.9
 - setuptools>=49.6.0
 - perl-vcftools-vcf=0.1.16
-- panvc=v2.0_rc1=24_ga7943aa
+- panvc=v2.0_rc1=26_gc8f2d68
 - vcf2multialign=v0.6.1=68_g9f4dd5d
