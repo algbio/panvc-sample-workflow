@@ -193,6 +193,7 @@ def SamToPos(SAM_FOLDER, REFERENCE_FILE_NAME, chr_list, SENSIBILITY, N_REFS, LOG
         CURR_SAM_FOLDER=SAM_FOLDER+"/"+str(chr_id)
         INPUT_SAM_FILENAME=CURR_SAM_FOLDER+"/mapped_reads_to"+str(ref_id)+".sam.gz"
         OUTPUT_FILENAME=CURR_SAM_FOLDER+"/mapped_reads_to"+str(ref_id)+".pos"
+        print(f"sam_to_positions input: {INPUT_SAM_FILENAME} sequence ID: {curr_fasta.id} output: {OUTPUT_FILENAME}", file = sys.stderr)
         output_object = open(OUTPUT_FILENAME, "w")
         (maped, cigar_unknown, not_maped) =  sam_process(INPUT_SAM_FILENAME, output_object, sequence, max_error);
         output_object.close()
