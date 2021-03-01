@@ -18,8 +18,7 @@ rule all:
 		max_edit_distance_file	= expand("{index_root}/max_edit_distance.txt", index_root = config["index_root"]),
 		max_read_len_file		= expand("{index_root}/max_read_len.txt", index_root = config["index_root"]),
 		chr_list_file			= expand("{index_root}/chr_list.txt", index_root = config["index_root"]),
-		len_files				= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gaps.len", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
-		sp_files				= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gaps.sp", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
+		gap_position_files		= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gap_positions", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
 		bowtie_index			= expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
 	run:
 		print(f"Index has been generated at {config['index_root']}.")
@@ -71,7 +70,7 @@ rule all_sequences_file:
 			for chr_id, _ in config["input_a2m"]:
 				src_dir = f"{config['index_root']}/{chr_id}"
 				sequence_gapped_path = f"{src_dir}/recombinant.n{curr_ref}.gapped"
-				ref_name = f"pg_ref_{chr_id}_{curr_ref}"
+				ref_name = f"pg_ref.{chr_id}.{curr_ref}"
 				shell(f"echo '>{ref_name}' >> {output[0]}")
 				shell(f"tr -d '-' < {sequence_gapped_path} >> {output[0]}")
 
@@ -79,14 +78,11 @@ rule gap_positions:
 	conda:					"workflow/envs/panvc.yaml"
 	message:				"Storing gap positions"
 	input:
-		gapped_recombinants	= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gapped", index_root = config["index_root"])
-	params:
-		gap_pos_prefix		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps", index_root = config["index_root"])
+		gapped_recombinant	= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gapped", index_root = config["index_root"])
 	output:
-		len_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.len", index_root = config["index_root"]),
-		sp_files			= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gaps.sp", index_root = config["index_root"])
+		gap_pos_file		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq_idx}}.gap_positions", index_root = config["index_root"])
 	benchmark:				f"{config['benchmark_dir']}/gap_positions/{{chr_id}}-seq{{seq_idx}}"
-	shell:					"panvc-store-gaps {input.gapped_recombinants} {params.gap_pos_prefix}"
+	shell:					"panvc-store-gaps --input={input.gapped_recombinant} > {output.gap_pos_file}"
 
 rule chic_index:
 	# Actually more outputs.
