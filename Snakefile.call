@@ -11,22 +11,19 @@ from pvc_tools import PVC_load_var
 
 
 def seq_id():
-	global config
 	return range(1, 1 + config["n_refs"])
 
 def adhoc_ref_all_files(wildcard = None):
 	"""Heaviest paths output."""
-	global config
 	output_root = config["output_root"]
 	chr_list = config["chromosome_list"]
 	return {f"adhoc_ref_{chr_id}": f"{output_root}/adhoc_ref_files/{chr_id}/adhoc_reference.aligned_to_ref" for chr_id in chr_list}
 
 def output_variants():
 	"""Final variant file names."""
-	global config
 	return [x for x in itertools.chain(
-		map(lambda x: f"ext_vc/pg_variants.{x}.vcf", config["variant_caller"]),
-		map(lambda x: f"baseline_vc/variants.{x}.vcf", config["variant_caller"])
+		map(lambda x: f"ext_vc/pg_variants.{x}.vcf", config["variant_caller"]) if "pg" in config["workflow"] else [],
+		map(lambda x: f"baseline_vc/variants.{x}.vcf", config["variant_caller"]) if "baseline" in config["workflow"] else []
 	)]
 
 def create_reference_symlink(src, dst):
@@ -39,6 +36,31 @@ def create_reference_symlink(src, dst):
 	print(f"{rel_src} -> {abs_dst}")
 	shell("mkdir -p {abs_dst_dir}")
 	os.symlink(rel_src, abs_dst)
+
+def bcftools_targets_arg(wildcards):
+	"""Call targets parameter for bcftools"""
+	if "call_regions" in config and 0 < len(config["call_regions"]):
+		region_string = None
+		if "ext_vc" == wildcards.workflow_name:
+			region_string = ",".join(map(lambda x: f"adhoc_ref_{x}", config["call_regions"]))
+		else:
+			region_string = ",".join(config["call_regions"])
+		return f"-t {region_string}"
+	return ""
+
+def gatk_intervals_arg(wildcards):
+	"""Call intervals parameter for GATK HaplotypeCaller"""
+	if "call_regions" in config and 0 < len(config["call_regions"]):
+		if "ext_vc" == wildcards.workflow_name:
+			return " ".join(map(lambda x :f"--intervals adhoc_ref_{x}", config["call_regions"]))
+		else:
+			return " ".join(map(lambda x :f"--intervals {x}", config["call_regions"]))
+	return ""
+
+def bwa_threads_config():
+	if "bwa_threads" in config:
+		return config["bwa_threads"]
+	return None
 
 
 wildcard_constraints:
@@ -87,6 +109,15 @@ rule gatk_index_ref:
 	shell:			"gatk"
 		" --java-options '-Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
 		" CreateSequenceDictionary --REFERENCE {input} --OUTPUT {output}"
+
+rule index_alignments:
+	message:		"Indexing aligned reads"
+	conda:			"workflow/envs/panvc.yaml"
+	input:			"{prefix}.bam"
+	output:			"{prefix}.bam.bai"
+	benchmark:      f"{config['benchmark_dir']}/samtools_index_alns/{{prefix}}"
+	threads:		4
+	shell:			"samtools index -@ {threads} {input}"
 
 rule mark_duplicates:
 	message:		"Marking duplicate reads"
@@ -158,7 +189,7 @@ rule panvc_convert_alignments:
 		chromosome_list     = config["chromosome_list"],
 		n_refs				= config["n_refs"],
 		output_root			= config["output_root"]
-	threads:				workflow.cores
+	threads:				4 # For samtools view
 	benchmark:				f"{config['benchmark_dir']}/panvc_convert_alignments"
 	script:					"workflow/scripts/panvc_convert_alignments.py"
 
@@ -244,7 +275,7 @@ rule samtools_align_reads:
 		reference		= expand("{output_root}/{{workflow_name}}/reference.fa", output_root = config["output_root"]),
 		bwa_indices		= expand("{output_root}/{{workflow_name}}/reference.fa.bwt", output_root = config["output_root"])
 	output:				expand("{output_root}/{{workflow_name}}/merged_reads.samtools.bam", output_root = config["output_root"])
-	threads:			workflow.cores
+	threads:			bwa_threads_config() or workflow.cores
 	benchmark:			f"{config['benchmark_dir']}/samtools_align_reads/{{workflow_name}}"
 	shell:				"bwa mem"
 		" -t {threads}"
@@ -261,10 +292,9 @@ rule samtools_sort_aligned:
 	conda:		"workflow/envs/panvc.yaml"
 	input:		expand("{output_root}/{{workflow_name}}/aligned_deduplicated.samtools.bam", output_root = config["output_root"])
 	output:		expand("{output_root}/{{workflow_name}}/sorted-alns2.samtools.bam", output_root = config["output_root"])
-	threads:	workflow.cores
+	threads:	4
 	params:
-		memory_per_thread						= math.floor(config["max_memory_MB"] / workflow.cores * 1024)
-	threads:	workflow.cores
+		memory_per_thread						= math.floor(config["max_memory_MB"] / 4 * 1024)
 	benchmark:	f"{config['benchmark_dir']}/samtools_sort_aligned/{{workflow_name}}"
 	shell:		"samtools sort"
 		" -@ {threads}"
@@ -281,11 +311,14 @@ rule samtools_pileup:
 		reference		= expand("{output_root}/{{workflow_name}}/reference.fa", output_root = config["output_root"])
 	output:				expand("{output_root}/{{workflow_name}}/variants.samtools.raw.bcf", output_root = config["output_root"])
 	params:
-		ploidy_file		= config["ploidy_file"]
+		ploidy_file		= config["ploidy_file"],
+		call_targets	= bcftools_targets_arg
 	benchmark:			f"{config['benchmark_dir']}/samtools_pileup/{{workflow_name}}"
 	shell:				"bcftools mpileup"
 		" --output-type u"
-		" --fasta-ref {input.reference} {input.aligned_reads} |"
+		" {params.call_targets} "
+		" --fasta-ref {input.reference} "
+		" {input.aligned_reads} |"
 		" bcftools call"
 		" --ploidy {params.ploidy_file}"
 		" --output-type u"
@@ -313,7 +346,7 @@ rule gatk_align_reads:
 		mem_mb					= config["max_memory_MB"]
 	params:
 		tempdir					= config["tempdir"]
-	threads:					workflow.cores
+	threads:					bwa_threads_config() or workflow.cores
 	benchmark:					f"{config['benchmark_dir']}/gatk_align_reads/{{workflow_name}}"
 	shell:						"bwa mem"
 		" -K 100000000"
@@ -337,7 +370,7 @@ rule gatk_sort_aligned_reads:
 		mem_mb					= config["max_memory_MB"]
 	params:
 		tempdir					= config["tempdir"]
-	threads:					workflow.cores
+	threads:					4
 	benchmark:					f"{config['benchmark_dir']}/gatk_sort_aligned_reads/{{workflow_name}}"
 	shell:						"gatk"
 		" --java-options '-Xmx{resources.mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
@@ -471,7 +504,8 @@ rule gatk_call_variants:
 		mem_mb			= config["max_memory_MB"]
 	params:
 		tempdir			= config["tempdir"],
-		ploidy			= config["ploidy"]
+		ploidy			= config["ploidy"],
+		call_intervals	= gatk_intervals_arg
 	benchmark:			f"{config['benchmark_dir']}/gatk_call_variants/{{workflow_name}}"
 	shell:				"gatk"
 		" --java-options '-Xmx{resources.mem_mb}M -Djava.io.tmpdir={params.tempdir} -Dsnappy.disable=true -Dsamjdk.snappy.disable=true'"
@@ -481,6 +515,7 @@ rule gatk_call_variants:
 		" -I {input.aligned_reads}"
 		" -O {output}"
 		" -pairHMM LOGLESS_CACHING"
+		" {params.call_intervals}"
 		" --use-jdk-deflater"
 		" --use-jdk-inflater"
 	#shell:				"java"
