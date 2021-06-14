@@ -51,19 +51,24 @@ def cigar_to_intervals(output, cigar_string, pattern, start_pos, reference, max_
         report_pos = start_pos;
         for i in range(op_length):
           #print >> sys.stderr, 'Inspecting: ' + str(start_pos) + "+"+str(i) +":"+ str(start_pos+i)
-          if (reference[start_pos + i] == pattern[i]):
-            if (match_count == 0):
-              report_pos = start_pos + i;
-            match_count += 1;
-          else:
-            count_errors += 1; 
-            if (count_errors > max_error):
-              return True
-            if (match_count != 0):
-              line=(str(report_pos)+" "+str(match_count));
-              output.write(line+"\n");
-            ##start_pos = start_pos + i;
-            match_count = 0;
+          try:
+            if (reference[start_pos + i] == pattern[i]):
+              if (match_count == 0):
+                report_pos = start_pos + i;
+              match_count += 1;
+            else:
+              count_errors += 1; 
+              if (count_errors > max_error):
+                return True
+              if (match_count != 0):
+                line=(str(report_pos)+" "+str(match_count));
+                output.write(line+"\n");
+              ##start_pos = start_pos + i;
+              match_count = 0;
+          except IndexError:
+            sys.stderr.write(f"Got an IndexError while parsing CIGAR.\n\tPattern: {pattern}\n\tstart_pos: {start_pos}\n\ti: {i}\n")
+            # Skip the record for now.
+            return False
         if (match_count!= 0):
           line=(str(report_pos)+" "+str(match_count));
           output.write(line+"\n");
