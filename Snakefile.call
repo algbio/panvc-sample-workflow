@@ -22,8 +22,24 @@ def adhoc_ref_all_files(wildcard = None):
 def output_variants():
 	"""Final variant file names."""
 	return [x for x in itertools.chain(
-		map(lambda x: f"ext_vc/pg_variants.{x}.vcf", config["variant_caller"]) if "pg" in config["workflow"] else [],
-		map(lambda x: f"baseline_vc/variants.{x}.vcf", config["variant_caller"]) if "baseline" in config["workflow"] else []
+		map(lambda x: f"baseline_vc/variants.{x}.vcf", config["variant_caller"]) if "baseline" in config["workflow"] else [],
+		map(lambda x: f"ext_vc/pg_variants.{x}.vcf", config["variant_caller"]) if "pg" in config["workflow"] else []
+	)]
+
+def output_alignments():
+	"""Final alignment file names."""
+	return [x for x in itertools.chain(
+		["baseline_vc/aligned_reads_unsorted.gatk.bam"] if ("baseline" in config["workflow"] and "gatk" in config["variant_caller"]) else [],
+		["baseline_vc/merged_reads.samtools.bam"]       if ("baseline" in config["workflow"] and "samtools" in config["variant_caller"]) else [],
+		["ext_vc/aligned_reads_unsorted.gatk.bam"]      if ("pg" in config["workflow"] and "gatk" in config["variant_caller"]) else [],
+		["ext_vc/merged_reads.samtools.bam"]            if ("pg" in config["workflow"] and "samtools" in config["variant_caller"]) else []
+	)]
+
+def output_alignments_deduplicated():
+	"""Final deduplicated alignment file names."""
+	return [x for x in itertools.chain(
+		map(lambda x: f"baseline_vc/aligned_deduplicated.{x}.bam", config["variant_caller"]) if "baseline" in config["workflow"] else [],
+		map(lambda x: f"ext_vc/aligned_deduplicated.{x}.bam", config["variant_caller"]) if "pg" in config["workflow"] else []
 	)]
 
 def create_reference_symlink(src, dst):
@@ -73,6 +89,20 @@ rule all:
 	input:	expand("{output_root}/{variant_file_path}", output_root = config["output_root"], variant_file_path = output_variants())
 	run:
 		print("Done. The variants have been written to the following files:")
+		for path in input:
+			print(path)
+
+rule alignments:
+	input:	expand("{output_root}/{alignment_file_path}", output_root = config["output_root"], alignment_file_path = output_alignments())
+	run:
+		print("Done. The alignments have been written to the following files:")
+		for path in input:
+			print(path)
+
+rule alignments_deduplicated:
+	input:	expand("{output_root}/{alignment_file_path}", output_root = config["output_root"], alignment_file_path = output_alignments_deduplicated())
+	run:
+		print("Done. The deduplicated alignments have been written to the following files:")
 		for path in input:
 			print(path)
 
@@ -578,7 +608,7 @@ rule panvc_normalize_variants:
 		index_root								= config["index_root"],
 		ploidy									= config["ploidy"]
 	benchmark:									f"{config['benchmark_dir']}/panvc_normalize_variants/{{chr_id}}-{{variant_caller}}"
-	shell:										"combine_msa_vcf --ref={input.original_multialigned_reference} --alt={input.adhoc_reference} --variants={input.variants_relative_to_adhoc_reference} --output-chr={params.chromosome_list} --ploidy={params.ploidy} > {output}"
+	shell:										"combine_msa_vcf --ref={input.original_multialigned_reference} --alt={input.adhoc_reference} --variants={input.variants_relative_to_adhoc_reference} --chr='adhoc_ref_{wildcards.chr_id}' --output-chr='{wildcards.chr_id}' --ploidy={params.ploidy} --msa-variants > {output}"
 
 rule panvc_concatenate_variants:
 	message:				"Combining VCF files"
