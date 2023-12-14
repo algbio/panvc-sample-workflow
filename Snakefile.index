@@ -58,6 +58,7 @@ rule chr_list_file:
 rule a2m_prepare:
 	conda:					"workflow/envs/panvc.yaml"
 	message:				"Handling A2M input"
+	input:					map(lambda x: x[1], config["input_a2m"])
 	output:	
 		names_plain			= expand("{index_root}/{{chr_id}}/names.plain", index_root = config["index_root"]),
 		n_refs				= expand("{index_root}/{{chr_id}}/n_refs.txt", index_root = config["index_root"]),
