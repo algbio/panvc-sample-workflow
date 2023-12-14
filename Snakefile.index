@@ -1,4 +1,4 @@
-# Copyright (c) Tuukka Norri 2020
+# Copyright (c) Tuukka Norri 2020, 2023
 # Licenced under the MIT licence.
 
 import functools
@@ -23,6 +23,17 @@ rule all:
 		bowtie_index			= expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
 	run:
 		print(f"Index has been generated at {config['index_root']}.")
+
+rule pg_index:
+	input:
+		max_edit_distance_file	= expand("{index_root}/max_edit_distance.txt", index_root = config["index_root"]),
+		max_read_len_file		= expand("{index_root}/max_read_len.txt", index_root = config["index_root"]),
+		chr_list_file			= expand("{index_root}/chr_list.txt", index_root = config["index_root"]),
+		len_files				= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gaps.len", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
+		sp_files				= expand("{index_root}/{chr_id}/recombinant.n{seq_idx}.gaps.sp", index_root = config["index_root"], chr_id = CHR_NAMES, seq_idx = REF_INDICES),
+		bowtie_index			= expand("{index_root}/recombinant.all.fa.x", index_root = config["index_root"])
+	output:						expand("{index_root}/pg_index", index_root = config["index_root"])
+	shell:						"touch {output}"
 
 rule max_edit_distance_file:
 	output: expand("{index_root}/max_edit_distance.txt", index_root = config["index_root"])

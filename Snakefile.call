@@ -1,4 +1,4 @@
-# Copyright (c) Tuukka Norri 2020
+# Copyright (c) Tuukka Norri 2020, 2023
 # Licenced under the MIT licence.
 
 import itertools
@@ -6,8 +6,8 @@ import math
 import sys
 import re
 
-sys.path.append(f"{workflow.basedir}/pvc_py_tools")
-from pvc_tools import PVC_load_var
+
+REF_INDICES = [1 + x for x in range(config["n_refs"])]
 
 
 def seq_id():
@@ -193,22 +193,23 @@ rule panvc_generate_reads_all:
 		"""
 
 rule panvc_align_reads:
-	message:				"Aligning reads with CHIC"
-	conda:					"workflow/envs/panvc.yaml"
+	message:					"Aligning reads with CHIC"
+	conda:						"workflow/envs/panvc.yaml"
 	input:
-		reads_all			= config["reads_all_path"]
-	output:					expand("{output_root}/sam_files/chic_aligner_did_finish", output_root = config["output_root"])
+		pg_index				= expand("{index_root}/pg_index", index_root = config["index_root"]),
+		reads_all				= config["reads_all_path"]
+	output:						expand("{output_root}/sam_files/chic_aligner_did_finish", output_root = config["output_root"])
 	params:
-		chromosome_list		= config["chromosome_list"],
-		ploidy				= config["ploidy"],
-		index_root			= config["index_root"],
-		n_refs				= config["n_refs"],
-		max_read_len		= config["max_read_len"],
-		max_edit_distance	= config["max_edit_distance"],
-		output_root			= config["output_root"]
-	threads:				workflow.cores
-	benchmark:				f"{config['benchmark_dir']}/panvc_align_reads"
-	script:					"workflow/scripts/panvc_align_reads.py"
+		chromosome_list			= config["chromosome_list"],
+		ploidy					= config["ploidy"],
+		index_root				= config["index_root"],
+		n_refs					= config["n_refs"],
+		max_read_len			= config["max_read_len"],
+		max_edit_distance		= config["max_edit_distance"],
+		output_root				= config["output_root"]
+	threads:					workflow.cores
+	benchmark:					f"{config['benchmark_dir']}/panvc_align_reads"
+	script:						"workflow/scripts/panvc_align_reads.py"
 
 rule panvc_convert_alignments:
 	message:				"Converting CHIC output"
@@ -246,13 +247,14 @@ rule panvc_pileup:
 	message:			"Doing pileup"
 	conda:				"workflow/envs/panvc.yaml"
 	input:
+		pg_index		= expand("{index_root}/pg_index", index_root = config["index_root"]),
 		pos_file		= expand("{output_root}/sam_files/{{chr_id}}/mapped_reads_to{{seq}}.pos", output_root = config["output_root"])
 	output:				expand("{output_root}/sam_files/{{chr_id}}/tmp_light_heaviest_path.{{seq}}.sums", output_root = config["output_root"])
 	params:
 		gaps_prefix		= expand("{index_root}/{{chr_id}}/recombinant.n{{seq}}.gaps", index_root = config["index_root"]),
-		msa_len			= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}")
+		msa_len_file	= lambda wildcards: f"{config['index_root']}/{wildcards.chr_id}/msa_len.txt"
 	benchmark:			f"{config['benchmark_dir']}/panvc_pileup/{{chr_id}}-seq{{seq}}"
-	shell:				"panvc-pileup --msa-length={params.msa_len} --intervals-path={input.pos_file} --gaps-prefix={params.gaps_prefix} > {output}"
+	shell:				"panvc-pileup --msa-length=`cat {params.msa_len_file}` --intervals-path={input.pos_file} --gaps-prefix={params.gaps_prefix} > {output}"
 		
 rule panvc_pileup_sums:
 	message:	"Generating sum file list"
@@ -270,19 +272,13 @@ rule panvc_heaviest_paths:
 	message:	"Outputting ad-hoc reference"
 	conda:		"workflow/envs/panvc.yaml"
 	input:
-		chrom_dir								= expand("{index_root}/{{chr_id}}", index_root = config["index_root"]),
+		pg_index								= expand("{index_root}/pg_index", index_root = config["index_root"]),
 		sum_file_list							= expand("{output_root}/sam_files/{{chr_id}}/sum_files.txt", output_root = config["output_root"]),
 	output:		expand("{output_root}/adhoc_ref_files/{{chr_id}}/adhoc_reference.aligned_to_ref", output_root = config["output_root"])
 	params:
-		index_root								= config["index_root"],
-		chromosome_list							= config["chromosome_list"],
-		n_chrom									= len(config["chromosome_list"]),
-		first_chr								= config["chromosome_list"][0],
-		n_refs									= config["n_refs"],
-		output_root								= config["output_root"],
-		msa_len									= lambda wildcards: PVC_load_var("msa_len", f"{config['index_root']}/{wildcards.chr_id}")
+		index_root								= config["index_root"]
 	benchmark:	f"{config['benchmark_dir']}/panvc_heaviest_paths/{{chr_id}}"
-	shell:	"panvc-heaviest-path --weights-file-list={input.sum_file_list} --chromosome-dir={input.chrom_dir} > {output}"
+	shell:	"panvc-heaviest-path --weights-file-list={input.sum_file_list} --chromosome-dir={params.index_root}/{wildcards.chr_id} > {output}"
 
 rule panvc_combine_adhoc_ref:
 	message:	"Combining ad-hoc references"
