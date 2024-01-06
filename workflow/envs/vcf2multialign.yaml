@@ -1,0 +1,6 @@
+channels:
+- tsnorri
+- conda-forge
+- bioconda
+dependencies:
+- vcf2multialign=v0.6.2

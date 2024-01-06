@@ -597,7 +597,7 @@ rule panvc_split_adhoc_relative_variants_by_chromosome:
 
 rule panvc_normalize_variants:
 	message:									"Normalizing variants"
-	conda:										"workflow/envs/panvc.yaml"
+	conda:										"workflow/envs/vcf2multialign.yaml"
 	input:
 		variants_relative_to_adhoc_reference	= expand("{output_root}/ext_vc/{{chr_id}}/variants.{{variant_caller}}.vcf", output_root = config["output_root"]),
 		original_multialigned_reference			= expand("{index_root}/{{chr_id}}/recombinant.n1.gapped", index_root = config["index_root"]),

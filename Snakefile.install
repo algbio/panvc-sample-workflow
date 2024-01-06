@@ -8,3 +8,7 @@ rule conda_environment:
 rule conda_environment_gatk:
 	conda:					"workflow/envs/panvc-gatk.yaml"
 	shell:					"echo 'Done.'"
+
+rule conda_environment_vcf2multialign:
+	conda:					"workflow/envs/vcf2multialign.yaml"
+	shell:					"echo 'Done.'"
